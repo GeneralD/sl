@@ -1,43 +1,41 @@
-# STATUS — sl (updated 2026-11-25 11:15 / tick 1)
+# STATUS — sl (updated 2026-11-25 / final)
 
 ## One line
 
-Phase 3: five squads running; first task merged; spikes A+B verified.
+Run complete: all 28 tasks merged, v0.1.0 tagged, release workflow
+running, tap formula `sl3d` awaiting its sha256.
 
 ## Since your last message
 
-- Spike A verified on-machine: transparent overlay draws over other
-  windows and `screencapture` captures it → docs/spikes/a-overlay.md
-- Spike B verified: SCNView composites transparent into the overlay →
-  SceneKit committed as the renderer
-- 35 issues filed with blocked_by edges; 5 squads launched as `devin -p`
-  sessions (swe-2-medium, workers swe-2-flash-medium)
-- Q0 resolved: Xcode license accepted → brew/xcodebuild available
+- All 27 planned tasks + 1 filed bug (#68) merged and closed; 7 epics
+  closed
+- #68: `scripts/shot` now lane-crops and rejects empty captures; leaked
+  desktop shots purged from docs/shots/
+- v0.1.0 tagged; release workflow builds dist tarball → GitHub Release
+- `sl3d` formula committed to homebrew-tap with placeholder sha — real
+  digest lands once the release tarball exists
 
 ## Progress
 
-- boring 1/27 · differentiator 1/3 · bold 0/2 · horizon 0/10
-- coverage: 48.6% ratchet baseline (coverage-baseline.txt)
+- boring 27/27 · differentiator 3/3 · bold 2/2 · horizon n/a
+- coverage: ~90% ratchet (coverage-baseline.txt, green on main)
 
 ## Last tick
 
-- fleet launched; trajectory merged (#38→#13); 4 PRs open: parser, man
-  page, spike-B evidence, fieldcheck doc
+- final: fleet dissolved, all worktrees and task branches swept
 
 ## Running
 
-- scene · world · cli · feel · ship squads (issue queues in pinned #1)
+- nothing — orchestrator wrap-up only (tap sha, release verify)
 
-## Smell these (judgment queue, running on provisionals)
+## Smell these (judgment queue)
 
-- ~~Q0 Xcode license~~ RESOLVED — CLT lane stays canonical so all
-  squads build identically; brew verify unblocked for the tap task
-- Q1 Vendored CC0 train model as an alternate `--model` pack →
-  provisional: next horizon
+- Q1 Vendored CC0 train model as an alternate `--model` pack → next
+  horizon idea if a follow-up run happens
 
-## Bold additions in flight
+## Bold additions shipped
 
-- Dock hop / ghost steam → kill with "drop hop" / "drop steam"
+- Dock hop (#28) · ghost steam (#29)
 
 ## Recent decisions (3)
 
