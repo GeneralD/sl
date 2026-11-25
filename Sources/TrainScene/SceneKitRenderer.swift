@@ -85,6 +85,7 @@ public final class SceneKitRenderer: Renderer {
         } else {
             train = ProceduralLocomotive(
                 livery: livery, scale: locoScale).node
+            attachLocomotiveEffects(to: train, scale: locoScale)
         }
         scene.rootNode.addChildNode(train)
         self.train = train
