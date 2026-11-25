@@ -7,4 +7,6 @@ public enum Registry {
         runSpecChecks
         + slVersionChecks
         + audioAssetChecks
+        + sceneKitChecks
+        + trajectoryChecks
 }
