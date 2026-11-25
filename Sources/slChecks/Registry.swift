@@ -13,4 +13,5 @@ public enum Registry {
         + flightChecks
         + allDisplayChecks
         + modelAssetChecks
+        + dockHopChecks
 }
