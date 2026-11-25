@@ -41,8 +41,15 @@
 - [init] Tests = custom `slChecks` executable (see above) + `scripts/shot`
   screenshot lane; names are spec sentences; coverage via
   `swift build --enable-code-coverage` + llvm-cov (both verified in CLT)
+- [fleet] Xcode license accepted mid-run — XCTest/brew unblocked, but
+  slChecks stays the primary lane (working, spec-sentence names, no
+  migration cost); `DEVELOPER_DIR=CLT` remains the canonical toolchain
+  pin so all five squads build identically
 - [init] Bold additions authored by orchestrator: Dock hop + ghost
   steam — both ride the trajectory/particle systems the boring tier
   already builds (notch hop dropped: the lane is a bottom strip, the
   notch never intersects it)
 - [task-11] RunSpec defaults: bare `sl` pulls 1 car (`cars = 1`); `-w` sets `speedFactor = 1.5`; `-h` is the help alias (undocumented in sl.1, which is off-limits); `parse` returns `Result` so `main.swift` got a mechanical unwrap — run-loop wiring untouched
+- [task-13] `TrainPresenter` applies poses to the lane `NSView` today;
+  the SceneKit `SCNNode` swap keeps the same `update(t:)` call (no
+  SceneKit renderer exists yet — presenter stays view-agnostic)
