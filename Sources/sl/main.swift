@@ -26,6 +26,7 @@ private final class OverlayDriver: FrameDriver {
     private let audio: AudioEngine?
     private let ui: RunUI
     private var fading = false
+    private var lastFrameT: TimeInterval?
 
     var duration: TimeInterval { base.duration }
 
@@ -37,9 +38,15 @@ private final class OverlayDriver: FrameDriver {
 
     var onFrame: (TimeInterval) -> Bool {
         { t in
+            // Real frame delta: the display link fires at the panel's
+            // own rate (60 or 120 Hz), so a fixed step would stretch or
+            // compress the fade.
+            let dt = self.lastFrameT.map { max(t - $0, 0) }
+                ?? FramePacing.fallbackInterval
+            self.lastFrameT = t
             if self.fading {
                 guard var f = self.ui.fade else { return false }
-                let alpha = f.advance(by: RunLoop.frameInterval)
+                let alpha = f.advance(by: dt)
                 for window in self.ui.windows { window.alphaValue = alpha }
                 self.ui.fade = f
                 return !f.isFinished
