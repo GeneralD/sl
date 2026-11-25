@@ -37,6 +37,11 @@ public struct RunSpec: Sendable {
     public var duration: TimeInterval? = nil
 
     public var stealth: Bool = false
+
+    /// `-a` requests the accident: the visual panic (screamer sprites,
+    /// rocking loco) lands first and the audio engine reads this to
+    /// layer screams on top — sound stays gated by `sound` (`-s`).
+    public var wantScreams: Bool { accident }
 }
 
 /// Why argv failed to parse. `message` is the one-line reason the CLI

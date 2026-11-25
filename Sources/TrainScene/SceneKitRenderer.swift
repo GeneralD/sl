@@ -23,6 +23,9 @@ public final class SceneKitRenderer: Renderer {
     private weak var ambientNode: SCNNode?
     private weak var keyNode: SCNNode?
     private var disco: DiscoTimeline?
+    private var screamers: ScreamerField?
+    /// `-a` panic: the loco rocks slightly while screamers pop.
+    private var rocking = false
 
     /// Two strobe colors the scene lights alternate between under `-d`.
     private static let discoPalette = [
@@ -109,6 +112,16 @@ public final class SceneKitRenderer: Renderer {
         // changes and render(at:) mutates node transforms every frame.
         view.rendersContinuously = false
         disco = spec.disco ? DiscoTimeline() : nil
+        rocking = spec.accident
+        if spec.accident {
+            // boundingBox covers the whole subtree in train-local
+            // space, so windows land correctly for the procedural
+            // loco's track-contact pivot and centered --model pivots.
+            let bounds = train.boundingBox
+            let field = ScreamerField(bounds: bounds.min, hi: bounds.max)
+            train.addChildNode(field.root)
+            screamers = field
+        }
         return view
     }
 
@@ -123,6 +136,12 @@ public final class SceneKitRenderer: Renderer {
         train.position = SCNVector3(
             CGFloat(pose.x), CGFloat(pose.y) - pivotDrop, 0)
         train.eulerAngles.z = CGFloat(pose.heading)
+        if rocking {
+            screamers?.update(at: t)
+            // Slight panic roll toward the camera — small enough to
+            // read as distress, not a crash.
+            train.eulerAngles.x = CGFloat(sin(t * 2.6) * 0.045)
+        }
         // Distance traveled since enter: the trajectory is linear, so
         // `startX - pose.x` is `speed * t` — the wheelwork's clock.
         let startX = trajectory.laneWidth + trajectory.margin
