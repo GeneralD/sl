@@ -2,13 +2,20 @@
 
 ![license](https://img.shields.io/badge/license-MIT-blue) ![platform](https://img.shields.io/badge/platform-macOS%2013+-black) ![swift](https://img.shields.io/badge/swift-6.3-orange) ![release](https://img.shields.io/github/v/release/GeneralD/sl) ![checks](https://img.shields.io/github/actions/workflow/status/GeneralD/sl/ci.yml?label=checks)
 
-<!-- hero: assets/hero.png (generating; swap in when it lands) -->
+![sl — a steam locomotive crossing a macOS desktop](assets/hero.png)
 
 A `3D` steam locomotive that runs across your **actual desktop** — over
 every open window, on every Space — when you typo `ls` into `sl`.
 
 The original [`sl`](https://github.com/mtoyoda/sl) by Toyoda Masashi
 punishes you inside the terminal. This one punishes you **everywhere**.
+
+## Demo
+
+![the train crossing the desktop, four frozen frames](assets/demo.gif)
+
+Real captures, no mockups: `scripts/shot` freezes the run mid-frame and
+grabs the actual screen. More frames in [`docs/shots/`](docs/shots/).
 
 ## Install
 
@@ -55,6 +62,27 @@ sl --all    # traverse every connected display
 sl --model engine.usdz   # your own USDZ/SCN/DAE locomotive
 man sl
 ```
+
+## Flags
+
+| Flag | Effect |
+|---|---|
+| `-a` | An accident seems to happen. You feel pity for people who cry for help. |
+| `-c` | A C51 locomotive appears instead of the D51. |
+| `-d` | Disco mode. |
+| `-e` | Allow interruption by Ctrl+C. Off by default, obviously. |
+| `-F` | It flies like the Galaxy Express 999. |
+| `-G` | A French TGV appears. |
+| `-h`, `--help` | Print this flag table. |
+| `-l` | A little version. |
+| `-s` | Chuff and whistle. Silent by default. |
+| `-v`, `--version` | Print version. |
+| `-w` | Windy. It moves faster. |
+| `-<n>` | Pull `n` trailing cars (1–10). |
+| `--all` | Traverse every connected display. |
+| `--model <file>` | Load a `.usdz`, `.scn` or `.dae` locomotive instead of the built-in one. |
+| `--freeze <sec>` | Render one frozen frame and hold — the lane `scripts/shot` uses. |
+| `--stealth` | Stay invisible: hidden from screenshots and screen recording. |
 
 ## How it works
 
