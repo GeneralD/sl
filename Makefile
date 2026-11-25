@@ -7,20 +7,22 @@ build:
 	swift build -c release
 
 install: build
-	install -d "$(PREFIX)/bin" "$(PREFIX)/share/man/man1"
+	install -d "$(PREFIX)/bin" "$(PREFIX)/share/man/man1" "$(PREFIX)/share/sl/audio"
 	install -m 755 .build/release/sl "$(PREFIX)/bin/sl"
 	install -m 644 sl.1 "$(PREFIX)/share/man/man1/sl.1"
+	install -m 644 share/sl/audio/*.wav "$(PREFIX)/share/sl/audio/"
 	@echo "installed: $$(command -v sl || echo $(PREFIX)/bin/sl)"
 
 uninstall:
 	rm -f "$(PREFIX)/bin/sl" "$(PREFIX)/share/man/man1/sl.1"
+	rm -rf "$(PREFIX)/share/sl"
 
 test:
 	scripts/gate
 
 release: build
 	@mkdir -p dist
-	tar -czf "dist/sl-$$(cat VERSION)-macos-arm64.tar.gz" -C .build/release sl -C "$$(pwd)" sl.1 LICENSE README.md
+	tar -czf "dist/sl-$$(cat VERSION)-macos-arm64.tar.gz" -C .build/release sl -C "$$(pwd)" sl.1 LICENSE README.md LICENSES.md share
 	@echo "dist/sl-$$(cat VERSION)-macos-arm64.tar.gz"
 
 clean:
