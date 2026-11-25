@@ -61,6 +61,7 @@ sl -c       # C51 instead of D51
 sl -d       # disco mode
 sl -s       # chuff & whistle (off by default)
 sl --all    # traverse every connected display
+sl --model loco          # bundled realistic locomotive (CC0)
 sl --model engine.usdz   # your own USDZ/SCN/DAE locomotive
 man sl
 ```

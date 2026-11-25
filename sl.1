@@ -67,6 +67,10 @@ Print version and exit. Long form of
 .Fl v .
 .It Fl -model Ar file
 Load a .usdz, .scn or .dae locomotive instead of the built-in one.
+The special name
+.Ar loco
+selects the bundled realistic locomotive
+.Pa ( share/sl/models/loco.usdz ) .
 glTF and GLB are not supported. The model is scaled to the lane
 height; a missing or unreadable file exits with status 2.
 .It Fl -all

@@ -1,4 +1,15 @@
-# Third-party audio assets
+# Third-party assets
+
+## share/sl/models/loco.usdz — realistic 4-6-2 steam locomotive
+
+- Source: "Steam Locomotive" v1 — tevy.dev
+  <https://tevy.dev/models/steam-locomotive>
+- License: CC0 1.0 Universal (public domain, no attribution required)
+- Derivative: GLB converted to USDZ (Blender 5.3), textures decoded
+  from KTX2 (basis_universal), re-oriented to X-forward/Y-up.
+- Vendored file: `share/sl/models/loco.usdz`, selected by `--model loco`.
+
+## Third-party audio assets
 
 Vendored files live in `share/sl/audio/` and are installed to
 `$(PREFIX)/share/sl/audio/` by `make install`. Every file is a trimmed /
