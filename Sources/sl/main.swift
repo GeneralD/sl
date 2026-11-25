@@ -80,6 +80,12 @@ MainActor.assumeIsolated {
         freeze = { renderer.render(at: $0) }
     }
 
+    // `-s` playback: chuff loop, whistles, `-a` screams. Freeze/shot
+    // mode stays silent — it exists for screenshots, not ears.
+    let audio = spec.freeze == nil
+        ? AudioEngine(spec: spec, duration: duration)
+        : nil
+
     if let freezeAt = spec.freeze {
 
         freezeMode = true
@@ -90,7 +96,12 @@ MainActor.assumeIsolated {
         Timer.scheduledTimer(withTimeInterval: 1.0 / 120, repeats: true) { timer in
             let alive = MainActor.assumeIsolated {
                 let t = Date().timeIntervalSince(start)
-                return step(t) && Date() <= hardStop
+                let running = step(t)
+                audio?.update(t: t, finished: !running)
+                // Hold for the exit whistle's tail after the train is
+                // gone — otherwise exit(0) clips it mid-note.
+                return (running || (audio?.tailRemaining(t: t) ?? 0) > 0)
+                    && Date() <= hardStop
             }
             if !alive {
                 timer.invalidate()

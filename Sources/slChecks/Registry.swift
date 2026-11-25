@@ -8,6 +8,7 @@ public enum Registry {
         + slVersionChecks
         + manPageChecks
         + audioAssetChecks
+        + audioEngineChecks
         + sceneKitChecks
         + trajectoryChecks
         + allDisplayChecks
