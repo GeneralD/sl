@@ -40,6 +40,13 @@ public enum RunLoop {
     private final class DisplayLinkTrampoline: @unchecked Sendable {
         let step: @MainActor () -> Bool
         var onDone: (@Sendable () -> Void)?
+        /// At most one queued step: if the main thread stalls (a slow
+        /// render), vsync callbacks keep arriving on the link thread —
+        /// without this flag they would pile up unboundedly and burst-
+        /// render afterward. Latest-t wins because `step` reads wall
+        /// time, not a per-callback payload.
+        private let pendingLock = NSLock()
+        private var pending = false
 
         init(step: @escaping @MainActor () -> Bool) {
             self.step = step
@@ -59,10 +66,20 @@ public enum RunLoop {
         /// `onDone` are captured by value — the queued closure is
         /// transient and must not keep the trampoline alive.
         func fire() {
+            pendingLock.lock()
+            guard !pending else {
+                pendingLock.unlock()
+                return
+            }
+            pending = true
+            pendingLock.unlock()
             let step = self.step
             let onDone = self.onDone
             DispatchQueue.main.async {
                 let keepGoing = MainActor.assumeIsolated { step() }
+                self.pendingLock.lock()
+                self.pending = false
+                self.pendingLock.unlock()
                 if !keepGoing { onDone?() }
             }
         }
@@ -74,6 +91,11 @@ public enum RunLoop {
     /// spins: it is driven by the hardware's vsync, not a poll.
     /// `init` returns nil when no display link can be created; the
     /// caller then falls back to the Timer path.
+    ///
+    /// The CVDisplayLink C API is deprecated in the macOS 15 SDK (Apple
+    /// points at `NSView.displayLink`, macOS 14+) but remains the only
+    /// vsync source reachable from a `macOS(.v13)` deployment target —
+    /// see DECISIONS.md [25].
     private final class DisplayClock: @unchecked Sendable {
         private var link: CVDisplayLink?
         private let trampoline: DisplayLinkTrampoline

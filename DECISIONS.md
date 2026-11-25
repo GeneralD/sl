@@ -94,3 +94,16 @@
   `-s` still gates actual sound.
 
 - [task-28] Dock hop: zone detected via `visibleFrame.minY - frame.minY` > 8 (bottom Dock only — a side Dock insets minX/maxX); the Dock's width is not public API, so the hop zone approximates it as a centered strip capped at 600pt; hop = 40px parabola + 0.15 rad pitch, skipped under `-F` flight; `--all` collects one zone per screen mapped into global lane coords
+
+- [25] Frame pacing: `RunLoop` drives `onFrame` from CVDisplayLink
+  (vsync-locked, ProMotion-aware, no drift) via a Sendable trampoline
+  that hops C callbacks to the main queue; Timer at
+  `SLCore.FramePacing.fallbackInterval` (1/120 s) is the fallback.
+  Chose the classic `CVDisplayLinkCreateWithActiveCGDisplays` +
+  `SetOutputCallback` + `Start`/`Stop` API because the CLT SDK lacks
+  the newer one-shot create, and CVDisplayLink over CADisplayLink
+  because CADisplayLink needs a view/screen while overlays are
+  borderless agents. The API is deprecated in the macOS 15 SDK
+  (`NSView.displayLink` needs macOS 14; package targets macOS 13) —
+  revisit when the deployment target moves. `OverlayDriver`'s fade
+  now advances by real frame dt since the panel rate isn't fixed.
