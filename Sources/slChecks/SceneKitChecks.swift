@@ -51,6 +51,20 @@ public let sceneKitChecks: [Check] = [
             try expect(renderer is PlaceholderRenderer)
         }
     },
+    Check("when the placeholder renderer is driven it builds a view and steps the train") {
+        try MainActor.assumeIsolated {
+            let renderer = PlaceholderRenderer(
+                spec: defaultSpec(), stripWidth: 1000)
+            let view = renderer.makeView(
+                in: NSRect(x: 0, y: 0, width: 1000, height: 180),
+                spec: defaultSpec())
+            try expect(view.subviews.count == 1,
+                       "placeholder view holds no train glyph")
+            try expect(renderer.step(to: 0))
+            renderer.render(at: 1)
+            try expect(!renderer.step(to: renderer.duration + 1))
+        }
+    },
     Check("when asked for its view the SceneKit renderer returns a clear SCNView") {
         try MainActor.assumeIsolated {
             let renderer = SceneKitRenderer(spec: defaultSpec(), stripWidth: 1000)
@@ -103,7 +117,7 @@ public let sceneKitChecks: [Check] = [
             try expect(types.contains(.directional))
         }
     },
-    Check("when asked for its view the SceneKit renderer holds the procedural locomotive node") {
+    Check("when asked for its view the SceneKit renderer holds the model locomotive node") {
         try MainActor.assumeIsolated {
             let renderer = SceneKitRenderer(spec: defaultSpec(), stripWidth: 1000)
             guard let scene = sceneKitScene(renderer) else {
@@ -111,7 +125,7 @@ public let sceneKitChecks: [Check] = [
                 return
             }
             let loco = scene.rootNode.childNode(
-                withName: "procedural-locomotive", recursively: true)
+                withName: "model-loco", recursively: true)
             try expect(loco != nil)
         }
     },
@@ -120,7 +134,7 @@ public let sceneKitChecks: [Check] = [
             let renderer = SceneKitRenderer(spec: defaultSpec(), stripWidth: 1000)
             guard let scene = sceneKitScene(renderer),
                   let loco = scene.rootNode.childNode(
-                    withName: "procedural-locomotive", recursively: true) else {
+                    withName: "model-loco", recursively: true) else {
                 try expect(false, "renderer produced no train node")
                 return
             }
@@ -130,6 +144,32 @@ public let sceneKitChecks: [Check] = [
             renderer.render(at: 7)
             try expect(loco.position.x < earlyX)
             try expect(!renderer.step(to: renderer.duration + 1))
+        }
+    },
+    Check("when the locomotive asset cannot be loaded the renderer still builds an empty train node") {
+        try MainActor.assumeIsolated {
+            let spec: RunSpec
+            switch RunSpec.parse(
+                ["sl", "--model", "/nonexistent-dir/nope.usdz"]) {
+            case .success(let parsed): spec = parsed
+            case .failure(let error):
+                fatalError("bad-model spec must parse: \(error)")
+            }
+            let renderer = SceneKitRenderer(spec: spec, stripWidth: 1000)
+            guard let view = renderer.makeView(
+                in: NSRect(x: 0, y: 0, width: 1000, height: 180),
+                spec: spec) as? SCNView,
+                let scene = view.scene else {
+                try expect(false, "renderer produced no scene")
+                return
+            }
+            let loco = scene.rootNode.childNode(
+                withName: "model-loco", recursively: true)
+            try expect(loco != nil, "no placeholder train node")
+            // The fallback carries no asset content — an empty node,
+            // not a crash and not a partial consist.
+            try expect(loco?.childNodes.isEmpty == true,
+                       "placeholder train should be empty")
         }
     },
     Check("when asked for a snapshot the SceneKit renderer renders the lit locomotive over transparency") {

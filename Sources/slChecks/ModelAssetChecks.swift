@@ -46,7 +46,7 @@ private func expectLoadError(
 ) throws {
     do {
         _ = try ModelAsset.loadTrain(
-            at: path, targetHeight: ProceduralLocomotive.size.height)
+            at: path, targetHeight: ModelAsset.locomotiveDesignHeight)
         try expect(false, "loadTrain should throw \(expected)")
     } catch let error as ModelAsset.LoadError {
         try expectEqual(error, expected)
@@ -107,9 +107,9 @@ public let modelAssetChecks: [Check] = [
             defer { try? FileManager.default.removeItem(at: dir) }
             let loaded = try ModelAsset.loadTrain(
                 at: dir.appendingPathComponent("fixture.scn").path,
-                targetHeight: ProceduralLocomotive.size.height)
+                targetHeight: ModelAsset.locomotiveDesignHeight)
             try expectEqual(loaded.node.name, "model-loco")
-            try expect(loaded.size.height == ProceduralLocomotive.size.height)
+            try expect(loaded.size.height == ModelAsset.locomotiveDesignHeight)
             try expect(loaded.size.width > 0)
         }
     },
@@ -129,14 +129,14 @@ public let modelAssetChecks: [Check] = [
             })
         }
     },
-    Check("when a model is supplied the SceneKit renderer swaps the procedural locomotive for the model node") {
+    Check("when a model is supplied the SceneKit renderer holds the normalized model node") {
         try MainActor.assumeIsolated {
             let dir = try writeSCNFixture("train.scn")
             defer { try? FileManager.default.removeItem(at: dir) }
             let path = dir.appendingPathComponent("train.scn").path
             let spec = parsedSpec(["sl", "--model", path])
             let loaded = try ModelAsset.loadTrain(
-                at: path, targetHeight: ProceduralLocomotive.size.height)
+                at: path, targetHeight: ModelAsset.locomotiveDesignHeight)
             let renderer = SceneKitRenderer(
                 spec: spec, stripWidth: 1000, model: loaded)
             guard let view = renderer.makeView(
@@ -148,8 +148,14 @@ public let modelAssetChecks: [Check] = [
                 try expect(false, "renderer produced no model node")
                 return
             }
-            try expect(scene.rootNode.childNode(
-                withName: "procedural-locomotive", recursively: true) == nil)
+            // The fixture's box geometry rides inside the wrapper.
+            var hasGeometry = false
+            func walk(_ n: SCNNode) {
+                if n.geometry != nil { hasGeometry = true }
+                n.childNodes.forEach(walk)
+            }
+            walk(loco)
+            try expect(hasGeometry, "model node carries no geometry")
             renderer.render(at: 0)
             let earlyX = loco.position.x
             renderer.render(at: 1)

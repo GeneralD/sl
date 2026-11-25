@@ -57,7 +57,6 @@ sl -4       # locomotive + 4 cars
 sl -l       # little train
 sl -w       # windy: faster
 sl -a       # screaming passengers
-sl -c       # C51 instead of D51
 sl -d       # disco mode
 sl -s       # chuff & whistle (off by default)
 sl --all    # traverse every connected display
@@ -71,11 +70,9 @@ man sl
 | Flag | Effect |
 |---|---|
 | `-a` | An accident seems to happen. You feel pity for people who cry for help. |
-| `-c` | A C51 locomotive appears instead of the D51. |
 | `-d` | Disco mode. |
 | `-e` | Allow interruption by Ctrl+C. Off by default, obviously. |
 | `-F` | It flies like the Galaxy Express 999. |
-| `-G` | A French TGV appears. |
 | `-h`, `--help` | Print this flag table. |
 | `-l` | A little version. |
 | `-s` | Chuff and whistle. Silent by default. |
@@ -84,7 +81,7 @@ man sl
 | `-<n>` | Pull `n` trailing cars (1–10). |
 | `--cars <n>` | Pull `n` trailing cars (0–50). `--cars 0` runs the locomotive light; long counts outgrow the screen. |
 | `--all` | Traverse every connected display. |
-| `--model <file>` | Load a `.usdz`, `.scn` or `.dae` locomotive instead of the built-in one. `-<n>`/`--cars` then couples the bundled tender and coach cars behind it. |
+| `--model <file>` | Load a `.usdz`, `.scn` or `.dae` locomotive instead of the bundled `loco.usdz`. `-<n>`/`--cars` then couples the bundled tender and coach cars behind it. |
 | `--scale <f>` | Train size multiplier — the default already fills a large share of the screen height. |
 | `--freeze <sec>` | Render one frozen frame and hold — the lane `scripts/shot` uses. |
 | `--stealth` | Stay invisible: hidden from screenshots and screen recording. |

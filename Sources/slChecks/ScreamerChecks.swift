@@ -30,7 +30,7 @@ private func sceneParts(
         spec: spec) as? SCNView,
         let scene = view.scene,
         let train = scene.rootNode.childNode(
-            withName: "procedural-locomotive", recursively: true) else { return nil }
+            withName: "model-loco", recursively: true) else { return nil }
     return (renderer, train)
 }
 
@@ -81,11 +81,11 @@ public let screamerChecks: [Check] = [
                 return
             }
             var counts: [Int] = []
-            var t = 0.0
-            while t <= 2.4 {
+            var tick = Tick()
+            tick.advance(until: 2.5, dt: 0.1) { t in
                 parts.renderer.render(at: t)
                 counts.append(visibleScreamers(under: parts.train))
-                t += 0.1
+                return true
             }
             guard let low = counts.min(), let high = counts.max() else {
                 try expect(false, "no frames sampled")

@@ -6,9 +6,8 @@ import SLCore
 /// The committed renderer (spike B, docs/adr/scene.md): a transparent
 /// `SCNView` hosting one ortho camera in a 3/4 overhead pose — scene
 /// units are lane points, foreshortened by the tilt — lit by ambient +
-/// directional lights. The
-/// `ProceduralLocomotive` node tree (or a `--model` asset) is driven by
-/// `Trajectory`.
+/// directional lights. The bundled `model-loco` asset (or a `--model`
+/// swap) is driven by `Trajectory`.
 ///
 /// HDR/exposure adaptation stays OFF: clear pixels read as black to the
 /// exposure solver and darken the whole strip.
@@ -16,14 +15,12 @@ import SLCore
 public final class SceneKitRenderer: Renderer {
     private let trajectory: Trajectory
     private let model: ModelAsset.Loaded?
-    private let livery: Livery
     private let locoScale: CGFloat
     /// Lane strip height in points — the ghost-steam clamps are
     /// fractions of the design lane, so they follow the real strip.
     private let laneHeight: CGFloat
     private weak var train: SCNNode?
     private var locoMaterials: [SCNMaterial] = []
-    private var wheelwork: WheelworkAnimator?
     private weak var ambientNode: SCNNode?
     private weak var keyNode: SCNNode?
     private var disco: DiscoTimeline?
@@ -36,8 +33,9 @@ public final class SceneKitRenderer: Renderer {
     /// trajectory width and the node tree agree.
     private var carCount: Int = 0
     private var carScale: CGFloat = 1
-    /// `--model` runs couple the bundled tender/coaches instead of
-    /// procedural cars; empty when no model or the assets are missing.
+    /// The bundled tender/coaches coupled behind the locomotive;
+    /// empty when no cars are requested or the assets are missing
+    /// (`sl` preflights the consist so a real run exits 2 first).
     private var modelCars: [ModelConsist.Car] = []
     private var screamers: ScreamerField?
     /// `-a` panic: the loco rocks slightly while screamers pop.
@@ -71,11 +69,10 @@ public final class SceneKitRenderer: Renderer {
 
     public let duration: TimeInterval
 
-    /// `model` is a `--model` asset already normalized by
-    /// `ModelAsset.loadTrain`; when absent the procedural locomotive
-    /// stands in. A `spec.model` with no `model` argument re-loads
-    /// defensively — `sl` preflights the load so a bad path exits 2
-    /// before the window opens.
+    /// `model` is a locomotive asset already normalized by
+    /// `ModelAsset.loadTrain`; when absent the bundled default (or a
+    /// `spec.model` path) is re-loaded defensively — `sl` preflights
+    /// the load so a bad path exits 2 before the window opens.
     ///
     /// `laneHeight` is the strip's height in points: the lane grew to
     /// ~60% of screen height, so the whole scene scales by
@@ -89,33 +86,15 @@ public final class SceneKitRenderer: Renderer {
         // The lane-height ratio scales every lane-fraction of the
         // design scene; `--scale` and `-l` multiply on top. A model
         // is normalized to the locomotive's design height, so the
-        // same `locoScale` lands it at the procedural loco's size.
+        // same `locoScale` lands it at the design size.
         let laneScale = laneHeight / OverlayGeometry.referenceLaneHeight
         let userScale = spec.scale.isFinite && spec.scale > 0
             ? spec.scale : 1
-        let loaded = model ?? spec.model.flatMap { path in
-            // Bare `loco` resolves to the bundled asset like `sl` does.
-            let resolved = path == "loco"
-                ? modelAssetURL(named: "loco.usdz")?.path ?? path
-                : path
-            return try? ModelAsset.loadTrain(
-                at: resolved,
-                targetHeight: ProceduralLocomotive.size.height)
-        }
-        livery = Self.livery(for: spec)
+        let loaded = model ?? Self.loadModel(spec: spec)
         locoScale = laneScale
             * (spec.little ? Self.littleScale : 1)
             * CGFloat(userScale)
-        // `-G` swaps the whole node builder, not just the paint: the
-        // TGV bullet is longer and lower than the D51 silhouette, so
-        // the trajectory measures whichever one will actually render.
-        let proceduralSize = spec.tgv
-            ? ProceduralTGV.size : ProceduralLocomotive.size
-        let locoSize = CGSize(
-            width: proceduralSize.width * locoScale,
-            height: proceduralSize.height * locoScale)
-        // `-l`/`--scale` shrink or grow the whole consist: a `--model`
-        // asset is normalized to the locomotive's design height, so
+        // A model is normalized to the locomotive's design height, so
         // its node scale and reported size take the same factor.
         let trainSize: CGSize
         if let loaded {
@@ -123,26 +102,29 @@ public final class SceneKitRenderer: Renderer {
                 width: loaded.size.width * locoScale,
                 height: loaded.size.height * locoScale)
         } else {
-            trainSize = locoSize
+            // Unreachable in a real run (`sl` exits 2 first); keeps
+            // the trajectory's positive-size precondition satisfied.
+            trainSize = CGSize(
+                width: ModelAsset.locomotiveDesignHeight * locoScale,
+                height: ModelAsset.locomotiveDesignHeight * locoScale)
         }
         carCount = spec.cars
         carScale = locoScale
-        // `--model` in play: couple the bundled tender/coaches (real
-        // proportions, lengths feed the trajectory); a missing asset
-        // falls back to procedural cars rather than a bare loco.
+        // Couple the bundled tender/coaches (real proportions, lengths
+        // feed the trajectory); a missing consist renders no cars —
+        // `sl` preflights it so a real run exits 2 before this point.
         let carsLength: CGFloat
         if loaded != nil, carCount > 0,
            let consist = ModelConsist.load(carCount: carCount) {
             modelCars = consist
             carsLength = ModelConsist.chainLength(cars: consist) * carScale
         } else {
-            carsLength = Car.chainLength(n: carCount, scale: carScale)
+            carsLength = 0
         }
         consistShift = carsLength / 2
-        // `-w` shortens the crossing: trajectory speed is the wheelwork's
-        // clock, so the running gear spins faster with it. The consist
-        // width includes the car chain so the last car clears the left
-        // edge before `finished` flips.
+        // `-w` shortens the crossing: the consist width includes the
+        // car chain so the last car clears the left edge before
+        // `finished` flips.
         let trajectory = Trajectory(
             laneWidth: Double(stripWidth),
             trainWidth: Double(trainSize.width + carsLength),
@@ -156,10 +138,19 @@ public final class SceneKitRenderer: Renderer {
         duration = trajectory.duration
     }
 
-    /// `-c` selects the red-edged C51 livery; `-G` swaps in the TGV
-    /// node builder in `makeView`, so it needs no livery slot.
-    private static func livery(for spec: RunSpec) -> Livery {
-        spec.c51 ? .c51 : .d51
+    /// Resolves the locomotive asset: `spec.model == nil` and the
+    /// `loco` alias both land on the bundled `loco.usdz`; anything
+    /// else is a user-supplied path. Returns nil only when the asset
+    /// cannot be loaded — `sl` preflights and exits 2 first.
+    @MainActor
+    private static func loadModel(spec: RunSpec) -> ModelAsset.Loaded? {
+        let path = spec.model ?? "loco"
+        let resolved = path == "loco"
+            ? modelAssetURL(named: "loco.usdz")?.path ?? path
+            : path
+        return try? ModelAsset.loadTrain(
+            at: resolved,
+            targetHeight: ModelAsset.locomotiveDesignHeight)
     }
 
     public func makeView(in frame: NSRect, spec: RunSpec) -> NSView {
@@ -174,50 +165,45 @@ public final class SceneKitRenderer: Renderer {
         let train: SCNNode
         if let model {
             train = model.node
-            // `-l` multiplies the wrapper's normalization scale; the
-            // car chain counter-scales off `train.scale` below.
+            // The model carries no `chimney`/`headlight` names —
+            // synthesize bbox-derived anchors BEFORE the `locoScale`
+            // multiply (the helper reads the wrapper's normalization
+            // transform), then attach the shared effects with scale 1:
+            // anchor-local units are design units, so ancestors apply
+            // `locoScale` exactly like the procedural loco's baked
+            // scale did.
+            anchorModelLocomotiveEffects(on: train, size: model.size)
             train.scale = SCNVector3(
                 train.scale.x * locoScale, train.scale.y * locoScale,
                 train.scale.z * locoScale)
-        } else if spec.tgv {
-            train = ProceduralTGV(scale: locoScale).node
+            attachLocomotiveEffects(to: train)
         } else {
-            train = ProceduralLocomotive(
-                livery: livery, scale: locoScale).node
-            attachLocomotiveEffects(to: train, scale: locoScale)
+            // Only reachable when the locomotive asset itself cannot
+            // be loaded — `sl` exits 2 before this in a real run.
+            train = SCNNode()
+            train.name = "model-loco"
         }
         // `-<n>` coupling: the chain rides inside the train node so it
-        // inherits pose, heading, wheelwork and disco. The chain lives
-        // in the train's local space — a `--model` wrapper pre-scales
+        // inherits pose, heading and disco. The chain lives in the
+        // train's local space — the `model-loco` wrapper pre-scales
         // that space, so the chain counter-scales to keep lane size.
-        if carCount > 0 {
+        // `modelCars` is only populated when `model` loaded, so the
+        // chain's rear anchor always comes from the normalized size.
+        if carCount > 0, !modelCars.isEmpty, let model {
             let nodeScale = CGFloat(train.scale.x)
-            let rearX: CGFloat
-            let bottomY: CGFloat
-            if let model {
-                rearX = model.size.width / 2
-                bottomY = -model.size.height / 2
-            } else {
-                rearX = CGFloat(train.boundingBox.max.x)
-                bottomY = 0
-            }
-            let chain = modelCars.isEmpty
-                ? Car.cars(n: carCount)
-                : ModelConsist.chain(cars: modelCars)
+            let chain = ModelConsist.chain(cars: modelCars)
             chain.scale = SCNVector3(
                 carScale / nodeScale, carScale / nodeScale,
                 carScale / nodeScale)
             chain.position = SCNVector3(
-                Float(rearX / nodeScale), Float(bottomY / nodeScale), 0)
+                Float(model.size.width / 2 / nodeScale),
+                Float(-model.size.height / 2 / nodeScale), 0)
             train.addChildNode(chain)
         }
         scene.rootNode.addChildNode(train)
         self.train = train
         baseScale = train.scale
         locoMaterials = Self.materials(of: train)
-        // Running gear rides only the procedural hooks — a `--model`
-        // scene has no guaranteed `wheel-*`/`rod-*` names to drive.
-        wheelwork = model == nil ? WheelworkAnimator(train: train) : nil
 
         let view = SCNView(frame: frame, options: nil)
         view.scene = scene
@@ -244,16 +230,14 @@ public final class SceneKitRenderer: Renderer {
     }
 
     /// Right-to-left like the original: `Trajectory` owns the math.
-    /// The procedural loco's pivot is track contact, so its y sits half
-    /// a train-height below the pose's box center; a `--model` asset is
-    /// normalized to a centered pivot and takes the pose y as-is.
+    /// The `model-loco` pivot is centered, so the pose's y lands
+    /// as-is.
     public func render(at t: TimeInterval) {
         guard let train else { return }
         let pose = trajectory.pose(at: t)
-        let pivotDrop = model == nil ? CGFloat(trajectory.trainHeight) / 2 : 0
         train.position = SCNVector3(
             CGFloat(pose.x) - consistShift,
-            CGFloat(pose.y) - pivotDrop, 0)
+            CGFloat(pose.y), 0)
         train.eulerAngles.z = CGFloat(pose.heading)
         if rocking {
             screamers?.update(at: t)
@@ -261,11 +245,6 @@ public final class SceneKitRenderer: Renderer {
             // read as distress, not a crash.
             train.eulerAngles.x = CGFloat(sin(t * 2.6) * 0.045)
         }
-        // Distance traveled since enter: the trajectory is linear, so
-        // `startX - pose.x` is `speed * t` — the wheelwork's clock.
-        let startX = trajectory.laneWidth + trajectory.margin
-            + trajectory.trainWidth / 2
-        wheelwork?.update(distance: CGFloat(startX - pose.x))
         if let disco {
             applyDisco(t: t, timeline: disco)
         }
@@ -275,9 +254,9 @@ public final class SceneKitRenderer: Renderer {
     }
 
     /// First finished frame: drop a ghost-steam emitter where the
-    /// train was — the chimney smoke's world position when the
-    /// procedural loco carries one, the train origin otherwise — and
-    /// stamp the exit time the post-exit hold counts down from.
+    /// train was — the chimney smoke's world position when the loco
+    /// carries one, the train origin otherwise — and stamp the exit
+    /// time the post-exit hold counts down from.
     private func dropGhostSteam(at t: TimeInterval) {
         if exitedAt == nil { exitedAt = t }
         guard ghost == nil, let scene else { return }

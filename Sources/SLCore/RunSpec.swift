@@ -10,11 +10,9 @@ public struct RunSpec: Sendable {
 
     /// Classic short flags (see `sl.1`).
     public var accident: Bool = false
-    public var c51: Bool = false
     public var disco: Bool = false
     public var allowInterrupt: Bool = false
     public var fly: Bool = false
-    public var tgv: Bool = false
     public var little: Bool = false
     public var sound: Bool = false
 
@@ -77,16 +75,14 @@ public extension RunSpec {
     /// Flag table matching `sl.1`; `-h` prints this.
     static func usage() -> String {
         """
-        usage: sl [-aceFGlhlsvw] [-<number-of-cars>] [--cars <n>] [--all] [--model <file>] [--freeze <seconds>] [--duration <seconds>] [--scale <factor>] [--stealth]
+        usage: sl [-adeFhlsvw] [-<number-of-cars>] [--cars <n>] [--all] [--model <file>] [--freeze <seconds>] [--duration <seconds>] [--scale <factor>] [--stealth]
                sl --help | --version
 
         flags:
           -a            an accident seems to happen
-          -c            C51 locomotive instead of D51
           -d            disco mode
           -e            allow interruption by Ctrl+C
           -F            fly like the Galaxy Express 999
-          -G            French TGV
           -h            print this flag table
           -l            little version
           -s            chuff and whistle
@@ -95,7 +91,7 @@ public extension RunSpec {
           -<n>          pull n trailing cars (1-10)
           --cars N      pull N cars (0-50; 0 = locomotive only)
           --all         traverse every connected display
-          --model FILE  load a .usdz/.scn/.dae locomotive ('loco' = bundled)
+          --model FILE  load a .usdz/.scn/.dae locomotive (default: bundled)
           --freeze SEC  render one frozen frame and hold
           --duration SEC  cap the run at SEC seconds
           --scale F     train size multiplier (default 1)
@@ -204,11 +200,9 @@ public extension RunSpec {
                 }
                 switch ch {
                 case "a": spec.accident = true
-                case "c": spec.c51 = true
                 case "d": spec.disco = true
                 case "e": spec.allowInterrupt = true
                 case "F": spec.fly = true
-                case "G": spec.tgv = true
                 case "h": spec.helpRequested = true
                 case "l": spec.little = true
                 case "s": spec.sound = true

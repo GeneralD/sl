@@ -77,6 +77,7 @@ public let allDisplayChecks: [Check] = [
         try MainActor.assumeIsolated {
             let stage = MultiScreenTrain(
                 lane: NSRect(x: 0, y: 0, width: 2000, height: 180), duration: 8)
+            try expect(stage.duration == 8)
             stage.update(t: 9)
             try expect(stage.finished)
         }

@@ -11,21 +11,17 @@ private func discoSpec() -> RunSpec {
     }
 }
 
-/// Builds a `-d` SceneKit renderer and returns its scene plus the train
-/// node, after `render(at:)` has been applied at the requested times.
-@MainActor
-private func discoScene(
-    renderAt times: [TimeInterval], width: CGFloat = 1000, height: CGFloat = 180
-) -> (scene: SCNScene, train: SCNNode)? {
-    let renderer = SceneKitRenderer(spec: discoSpec(), stripWidth: width)
-    guard let view = renderer.makeView(
-        in: NSRect(x: 0, y: 0, width: width, height: height),
-        spec: discoSpec()) as? SCNView,
-        let scene = view.scene,
-        let train = scene.rootNode.childNode(
-            withName: "procedural-locomotive", recursively: true) else { return nil }
-    times.forEach { renderer.render(at: $0) }
-    return (scene, train)
+/// First material-bearing descendant of the model — the `-d` tint
+/// target `locoMaterials` collects. There is no `boiler` node name on
+/// a USDZ asset, so pick whatever paints first.
+private func firstMaterial(in node: SCNNode) -> SCNMaterial? {
+    if let material = node.geometry?.materials.first {
+        return material
+    }
+    for child in node.childNodes {
+        if let material = firstMaterial(in: child) { return material }
+    }
+    return nil
 }
 
 private func hue(of color: Any?) -> CGFloat? {
@@ -64,9 +60,9 @@ public let discoChecks: [Check] = [
                 in: NSRect(x: 0, y: 0, width: 1000, height: 180),
                 spec: discoSpec()) as? SCNView,
                 let scene = view.scene,
-                let boiler = scene.rootNode.childNode(
-                    withName: "boiler", recursively: true),
-                let material = boiler.geometry?.materials.first as? SCNMaterial else {
+                let loco = scene.rootNode.childNode(
+                    withName: "model-loco", recursively: true),
+                let material = firstMaterial(in: loco) else {
                 try expect(false, "disco renderer produced no material")
                 return
             }
@@ -123,15 +119,28 @@ public let discoChecks: [Check] = [
                        "scale pulse amplitude \(maxDev) exceeds modest bound")
 
             // And the renderer actually applies it: peak of the sine is
-            // at t = 1/(4*flashRate) = 0.125 for the default rate.
-            guard let (_, train) = discoScene(renderAt: [0.125]) else {
+            // at t = 1/(4*flashRate) = 0.125 for the default rate. The
+            // wrapper's base scale is the model normalization ×
+            // `locoScale`, so assert the pulse as a ratio, not an
+            // absolute.
+            let renderer = SceneKitRenderer(spec: discoSpec(), stripWidth: 1000)
+            guard let view = renderer.makeView(
+                in: NSRect(x: 0, y: 0, width: 1000, height: 180),
+                spec: discoSpec()) as? SCNView,
+                let scene = view.scene,
+                let train = scene.rootNode.childNode(
+                    withName: "model-loco", recursively: true) else {
                 try expect(false, "disco renderer produced no train")
                 return
             }
-            try expect(abs(train.scale.x - 1) > 0.01,
-                       "train scale never pulsed: \(train.scale.x)")
-            try expect(abs(train.scale.x - 1) <= 0.15,
-                       "pulse too large: \(train.scale.x)")
+            renderer.render(at: 0)
+            let rest = train.scale.x
+            renderer.render(at: 0.125)
+            let pulsed = train.scale.x / rest - 1
+            try expect(pulsed > 0.01,
+                       "train scale never pulsed: \(pulsed)")
+            try expect(pulsed <= 0.15,
+                       "pulse too large: \(pulsed)")
         }
     },
     Check("when -d is on the flash rate never exceeds three per second") {
@@ -166,13 +175,14 @@ public let discoChecks: [Check] = [
                 spec: spec) as? SCNView,
                 let scene = view.scene,
                 let train = scene.rootNode.childNode(
-                    withName: "procedural-locomotive", recursively: true) else {
+                    withName: "model-loco", recursively: true) else {
                 try expect(false, "plain renderer produced no scene")
                 return
             }
             renderer.render(at: 0.125)
+            let scaleA = train.scale.x
             renderer.render(at: 0.75)
-            try expectEqual(train.scale.x, 1)
+            try expectEqual(train.scale.x, scaleA)
             let (key, ambient) = lightColors(scene)
             // Default rig: lights keep their authored colors (nil color
             // means SceneKit default white — both equal, never swapped).

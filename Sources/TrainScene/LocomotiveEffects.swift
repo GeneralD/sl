@@ -2,13 +2,15 @@ import AppKit
 import QuartzCore
 import SceneKit
 
-/// Atmosphere layered onto the procedural locomotive's named nodes:
-/// chimney smoke (an `SCNParticleSystem` of soft puffs that drift,
-/// grow and fade), the headlight's emissive beam cone + spot light,
-/// and a faint warm emission inside the cab. Everything is looked up
-/// by node name, so a `--model` asset without those names gets
-/// nothing. `scale` is the `-l` miniature factor so effects shrink
-/// with the loco.
+/// Atmosphere layered onto the locomotive: chimney smoke (an
+/// `SCNParticleSystem` of soft puffs that drift, grow and fade), the
+/// headlight's emissive beam cone + spot light, and a faint warm
+/// emission inside the cab. Everything is looked up by node name —
+/// the procedural loco shipped `chimney`/`headlight`/`cab` nodes, and
+/// `anchorModelLocomotiveEffects` synthesizes the first two for a
+/// loaded model, which carries neither. `scale` is the effect-size
+/// factor; for model runs it is 1 because the anchors convert their
+/// local space to design units and the ancestors apply `locoScale`.
 @MainActor
 public func attachLocomotiveEffects(to loco: SCNNode, scale: CGFloat = 1) {
     if let chimney = loco.childNode(withName: "chimney", recursively: true) {
@@ -22,6 +24,49 @@ public func attachLocomotiveEffects(to loco: SCNNode, scale: CGFloat = 1) {
     if let cab = loco.childNode(withName: "cab", recursively: true) {
         cabGlow(cab)
     }
+}
+
+// MARK: - Model anchors
+
+/// A loaded model (`model-loco` wrapper) carries no `chimney` or
+/// `headlight` node names, so `attachLocomotiveEffects` would find
+/// nothing. This synthesizes plain anchor nodes from the model's
+/// bounding box — chimney near the front-top, headlight on the front
+/// face's upper area (front of travel is -x; cars couple +x) — as
+/// children of the wrapper, then the caller attaches the shared
+/// effects.
+///
+/// `size` is `ModelAsset.Loaded.size` (design units, centered pivot).
+/// Each anchor's own scale folds the wrapper's normalization scale
+/// back out, so anchor-local units ARE design units: effect sizes
+/// inside them ride `locoScale` through the ancestors exactly like
+/// the procedural loco's baked scale did — call
+/// `attachLocomotiveEffects(to:scale:)` with `scale: 1` afterwards.
+/// MUST run before the wrapper's scale is multiplied by `locoScale`,
+/// while `loco.scale`/`loco.position` still hold the normalization
+/// transform `ModelAsset` authored.
+@MainActor
+public func anchorModelLocomotiveEffects(on loco: SCNNode, size: CGSize) {
+    let s = loco.scale
+    func anchor(_ name: String, _ x: CGFloat, _ y: CGFloat) {
+        let node = SCNNode()
+        node.name = name
+        node.scale = SCNVector3(1 / s.x, 1 / s.y, 1 / s.z)
+        // Design point -> wrapper-local: undo position, divide by the
+        // normalization scale (uniform in practice, per-axis safe).
+        node.position = SCNVector3(
+            Float((x - CGFloat(loco.position.x)) / s.x),
+            Float((y - CGFloat(loco.position.y)) / s.y),
+            Float((0 - CGFloat(loco.position.z)) / s.z))
+        loco.addChildNode(node)
+    }
+    // Fractions of the bounding box, not absolutes: the bundled loco
+    // is ~2.2 design-units wide per unit of height, so x fractions of
+    // `size.width` land the chimney on the smokebox crown and the
+    // lamp on the nose face. (Logged in DECISIONS.md.)
+    anchor("chimney", -size.width * 0.25, size.height * 0.70)
+    anchor("headlight", -size.width / 2 + size.width * 0.02,
+           size.height * 0.18)
 }
 
 // MARK: - Chimney smoke

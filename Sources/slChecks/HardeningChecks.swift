@@ -106,6 +106,15 @@ public let hardeningChecks: [Check] = [
             try expectEqual(window.sharingType, .readOnly)
         }
     },
+    Check("when the slot root is asked for it resolves under the shared temp dir") {
+        let root = Hardening.slotRoot(uid: 501)
+        try expect(root.path.hasPrefix("/tmp/sl-501-slots"),
+                   "unexpected slot root: \(root.path)")
+    },
+    Check("when a slot refusal is described it prints its message") {
+        let refusal = Hardening.SlotRefusal("too many trains")
+        try expectEqual(refusal.description, "too many trains")
+    },
     Check("when the fade advances alpha falls from 1 to 0 across its duration") {
         var fade = Hardening.FadeOut()
         try expectEqual(fade.duration, Hardening.fadeOutDuration)

@@ -7,7 +7,7 @@ import SLTestKit
 public let manPageChecks: [Check] = [
     Check("when the man page is read it documents every classic flag") {
         let text = try manPageText()
-        for flag in ["a", "c", "d", "e", "F", "G", "l", "s", "w", "v"] {
+        for flag in ["a", "d", "e", "F", "l", "s", "w", "v"] {
             try expect(text.contains("Fl \(flag)"), "missing -\(flag)")
         }
         try expect(text.contains("Ns Ar n"), "missing -<number-of-cars>")

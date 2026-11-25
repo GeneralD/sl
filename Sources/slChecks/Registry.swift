@@ -10,7 +10,6 @@ public enum Registry {
         + audioAssetChecks
         + audioEngineChecks
         + sceneKitChecks
-        + locomotiveChecks
         + trajectoryChecks
         + flightChecks
         + allDisplayChecks
@@ -20,10 +19,7 @@ public enum Registry {
         + modelAssetChecks
         + smokeHeadlightChecks
         + screamerChecks
-        + wheelworkChecks
         + dockHopChecks
-        + carChecks
-        + liveryChecks
         + feelChecks
         + displayPacingChecks
         + shotEvidenceChecks

@@ -30,13 +30,21 @@ final class ScreamerField {
         let height = CGFloat(hi.y - lo.y)
         unit = height / Self.referenceHeight
         let windowY = CGFloat(lo.y) + height * 0.45
-        let frontZ = CGFloat(hi.z) + 1.5
+        // The z nudge scales with `unit` like every other dimension:
+        // model runs hand us asset-unit bounds (meters), where a
+        // fixed 1.5 would hover the windows far off the body.
+        let frontZ = CGFloat(hi.z) + 1.5 * unit
         // Windows hug the boiler/tender side band, clear of the cowcatcher
         // nose and the cab's own windows.
         let xLo = CGFloat(lo.x) + width * 0.1
         let xHi = CGFloat(hi.x) - width * 0.08
         let spacing = 34 * unit
-        let count = max(1, Int((xHi - xLo) / spacing))
+        // Degenerate bounds (empty fallback train, zero-size model)
+        // must not reach Int(_:): spacing 0 or non-finite yields NaN.
+        guard spacing.isFinite, spacing > 0,
+              width.isFinite, height.isFinite, width > 0, height > 0
+        else { return }
+        let count = min(64, max(1, Int((xHi - xLo) / spacing)))
         let span = CGFloat(count - 1) * spacing
         let startX = (xLo + xHi) / 2 - span / 2
         for i in 0..<count {
@@ -46,14 +54,19 @@ final class ScreamerField {
         }
     }
 
-    /// Advances every figure's pop cycle; called once per rendered frame.
+    /// Advances every figure's pop cycle; called once per rendered
+    /// frame. Figure geometry is already `unit`-scaled, so the node
+    /// scale is the bare pop envelope — a second `unit` factor would
+    /// shrink model-run figures by `unit²` (asset units are meters).
+    /// The rise lift stays in `unit` units so it lands ~9 scene
+    /// units above the sill on either pivot convention.
     func update(at t: TimeInterval) {
         for figure in figures {
             let cycle = (t / period + figure.phase)
                 .truncatingRemainder(dividingBy: 1)
-            let scale = CGFloat(Self.popScale(cycle)) * unit
-            figure.node.scale = SCNVector3(scale, scale, scale)
-            figure.node.position.y = figure.anchorY + scale * 9
+            let pop = CGFloat(Self.popScale(cycle))
+            figure.node.scale = SCNVector3(pop, pop, pop)
+            figure.node.position.y = figure.anchorY + pop * unit * 9
         }
     }
 

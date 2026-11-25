@@ -1,8 +1,8 @@
 import SceneKit
 
-/// The bundled-car consist for `--model` runs (`-<n>`): the tevy.dev
+/// The bundled-car consist for `-<n>`/`--cars`: the tevy.dev
 /// USDZ tender and coaches under `share/sl/models/`, coupled behind
-/// the locomotive in place of the procedural `Car.cars` chain.
+/// the locomotive — the default train and every `--model` run alike.
 ///
 /// Heights keep real-world proportion to the loco: each car is
 /// normalized so `carHeight / locoHeight` matches the assets'
@@ -12,6 +12,11 @@ import SceneKit
 /// loco lengths, squashed along x only: the 27 m express coach is
 /// genuinely twice the locomotive long, which would swamp the lane.
 public enum ModelConsist {
+    /// Breathing room between a car's rear and the next car's front —
+    /// and between the loco's rear edge and the first car. Relocated
+    /// from the retired procedural `Car` (issue #78).
+    public static let couplingGap: CGFloat = 14
+
     /// One coupled car: the normalized model node plus its size in
     /// design units — the space `locoScale` then scales, same as
     /// `ModelAsset.Loaded.size`. `size.width` already reflects the
@@ -38,8 +43,8 @@ public enum ModelConsist {
 
     /// Loads the consist from the bundled `share/sl/models/`
     /// directory, or nil when the assets cannot be resolved or
-    /// parsed — callers fall back to procedural cars rather than
-    /// running a partial consist.
+    /// parsed — `sl` treats that as the same usage error as a bad
+    /// `--model` (exit 2) rather than running a partial consist.
     @MainActor
     public static func load(carCount n: Int) -> [Car]? {
         load(carCount: n) { modelAssetURL(named: $0)?.path }
@@ -52,7 +57,7 @@ public enum ModelConsist {
                             resolve: (String) -> String?) -> [Car]? {
         guard let reference = locoReferenceSize(resolve: resolve)
         else { return nil }
-        let designLocoHeight = ProceduralLocomotive.size.height
+        let designLocoHeight = ModelAsset.locomotiveDesignHeight
         let locoDesignWidth = designLocoHeight
             * reference.width / reference.height
         let maxCarLength = locoDesignWidth * maxCarLengthFactor
@@ -98,27 +103,25 @@ public enum ModelConsist {
     }
 
     /// Design-space length the chain adds behind the loco's rear
-    /// edge — every car's width plus one `couplingGap`, the same
-    /// accounting `Car.chainLength` uses for procedural cars.
+    /// edge — every car's width plus one `couplingGap`.
     public static func chainLength(cars: [Car]) -> CGFloat {
         cars.reduce(0) { $0 + $1.size.width }
-            + CGFloat(cars.count) * TrainScene.Car.couplingGap
+            + CGFloat(cars.count) * couplingGap
     }
 
     /// The `car-chain` node: cars trailing +x in coupling order, each
     /// bottom on the rail line (the chain origin sits at the loco's
-    /// rear edge at track contact), spaced by `couplingGap` like
-    /// `Car.cars`.
+    /// rear edge at track contact), spaced by `couplingGap`.
     public static func chain(cars: [Car]) -> SCNNode {
         let chain = SCNNode()
         chain.name = "car-chain"
-        var x = TrainScene.Car.couplingGap
+        var x = couplingGap
         for car in cars {
             car.node.position = SCNVector3(
                 Float(x + car.size.width / 2),
                 Float(car.size.height / 2), 0)
             chain.addChildNode(car.node)
-            x += car.size.width + TrainScene.Car.couplingGap
+            x += car.size.width + couplingGap
         }
         return chain
     }

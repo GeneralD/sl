@@ -1,17 +1,23 @@
 import Foundation
 import SceneKit
 
-/// User-supplied locomotive swap (`--model`): loads .usdz/.scn/.dae via
-/// `SCNScene(url:)` — never a bare `MDLAsset`, which renders untextured
-/// (docs/adr/scene.md) — and normalizes the bounding box to the
-/// locomotive's design height, centered on the node origin like the
-/// procedural loco; the renderer's `locoScale` then lands it at the
-/// same on-screen size. glTF/GLB is NOT loadable; the supported set is
-/// documented in `sl.1`, the README and the usage text.
+/// Locomotive assets: the bundled `share/sl/models/loco.usdz` is the
+/// default train and `--model <file>` swaps in a custom one. Loads
+/// .usdz/.scn/.dae via `SCNScene(url:)` — never a bare `MDLAsset`,
+/// which renders untextured (docs/adr/scene.md) — and normalizes the
+/// bounding box to `locomotiveDesignHeight`, centered on the node
+/// origin; the renderer's `locoScale` then lands it at the design
+/// size. glTF/GLB is NOT loadable; the supported set is documented in
+/// `sl.1`, the README and the usage text.
 public enum ModelAsset {
+    /// The design-space height every locomotive normalizes to — the
+    /// retired procedural loco's height, kept as the consist's meter
+    /// so bundled cars keep their real-world proportions.
+    public static let locomotiveDesignHeight: CGFloat = 154
+
     /// A loaded, normalized train ready to drop into the scene graph.
     public struct Loaded {
-        /// Node named `model-loco`; add it where the procedural loco goes.
+        /// Node named `model-loco`; add it where the train goes.
         public let node: SCNNode
         /// Normalized bounding-box size in scene units (== points).
         public let size: CGSize
@@ -91,9 +97,9 @@ public enum ModelAsset {
     }
 
     /// Wraps the scene's content in a `model-loco` node scaled so the
-    /// bounding-box height equals `targetHeight` (the locomotive's
-    /// design height), with the box center on the node origin — the
-    /// same anchor the placeholder geometry uses.
+    /// bounding-box height equals `targetHeight` (normally
+    /// `locomotiveDesignHeight`), with the box center on the node
+    /// origin.
     @MainActor
     private static func normalized(_ scene: SCNScene,
                                    targetHeight: CGFloat) throws -> Loaded {
