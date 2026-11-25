@@ -32,6 +32,10 @@ public struct RunSpec: Sendable {
     /// hold the window open until SIGTERM. `nil` = normal timed run.
     public var freeze: Double? = nil
 
+    /// `--duration SEC`: cap the run at SEC seconds. `nil` = the RunLoop
+    /// default (10s, never past the driver's own crossing length).
+    public var duration: TimeInterval? = nil
+
     public var stealth: Bool = false
 
     /// `-a` requests the accident: the visual panic (screamer sprites,
@@ -68,7 +72,7 @@ public extension RunSpec {
     /// Flag table matching `sl.1`; `-h` prints this.
     static func usage() -> String {
         """
-        usage: sl [-aceFGlhlsvw] [-<number-of-cars>] [--all] [--model <file>] [--freeze <seconds>] [--stealth]
+        usage: sl [-aceFGlhlsvw] [-<number-of-cars>] [--all] [--model <file>] [--freeze <seconds>] [--duration <seconds>] [--stealth]
                sl --help | --version
 
         flags:
@@ -87,6 +91,7 @@ public extension RunSpec {
           --all         traverse every connected display
           --model FILE  load a .usdz/.scn/.dae locomotive
           --freeze SEC  render one frozen frame and hold
+          --duration SEC  cap the run at SEC seconds
           --stealth     hide from screen sharing
           --version     print version
         """
@@ -129,7 +134,7 @@ public extension RunSpec {
                 case "version": spec.versionRequested = true
                 case "all": spec.allDisplays = true
                 case "stealth": spec.stealth = true
-                case "model", "freeze":
+                case "model", "freeze", "duration":
                     let value: String
                     if let inline {
                         guard !inline.isEmpty else { return .failure(.missingValue("--\(name)")) }
@@ -142,6 +147,12 @@ public extension RunSpec {
                     }
                     if name == "model" {
                         spec.model = value
+                    } else if name == "duration" {
+                        guard let seconds = Double(value),
+                              seconds.isFinite, seconds > 0 else {
+                            return .failure(.invalidValue("--duration", value))
+                        }
+                        spec.duration = seconds
                     } else {
                         guard let seconds = Double(value) else {
                             return .failure(.invalidValue("--freeze", value))

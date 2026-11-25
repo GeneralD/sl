@@ -14,6 +14,7 @@ public enum Registry {
         + trajectoryChecks
         + flightChecks
         + allDisplayChecks
+        + runLoopChecks
         + discoChecks
         + hardeningChecks
         + modelAssetChecks
