@@ -23,6 +23,15 @@ public final class SceneKitRenderer: Renderer {
     private weak var ambientNode: SCNNode?
     private weak var keyNode: SCNNode?
     private var disco: DiscoTimeline?
+    /// Consist center offset from the loco pivot: cars all trail +x, so
+    /// the coupled train's midpoint sits half the car chain past the
+    /// loco's own center. `render` subtracts this so `pose.x` keeps
+    /// meaning "center of the whole consist".
+    private var consistShift: CGFloat = 0
+    /// `-<n>` cars and their scale, resolved once in `init` so the
+    /// trajectory width and the node tree agree.
+    private var carCount: Int = 0
+    private var carScale: CGFloat = 1
     private var screamers: ScreamerField?
     /// `-a` panic: the loco rocks slightly while screamers pop.
     private var rocking = false
@@ -61,11 +70,19 @@ public final class SceneKitRenderer: Renderer {
             width: proceduralSize.width * locoScale,
             height: proceduralSize.height * locoScale)
         let trainSize = loaded?.size ?? locoSize
+        // Cars scale with `-l` on the procedural loco; a `--model`
+        // asset is already lane-height, so its cars stay full size.
+        carCount = spec.cars
+        carScale = loaded == nil ? locoScale : 1
+        let carsLength = Car.chainLength(n: carCount, scale: carScale)
+        consistShift = carsLength / 2
         // `-w` shortens the crossing: trajectory speed is the wheelwork's
-        // clock, so the running gear spins faster with it.
+        // clock, so the running gear spins faster with it. The consist
+        // width includes the car chain so the last car clears the left
+        // edge before `finished` flips.
         let trajectory = Trajectory(
             laneWidth: Double(stripWidth),
-            trainWidth: Double(trainSize.width),
+            trainWidth: Double(trainSize.width + carsLength),
             trainHeight: Double(trainSize.height),
             duration: 8 / spec.speedFactor,
             fly: spec.fly,
@@ -98,6 +115,29 @@ public final class SceneKitRenderer: Renderer {
         } else {
             train = ProceduralLocomotive(
                 livery: livery, scale: locoScale).node
+        }
+        // `-<n>` coupling: the chain rides inside the train node so it
+        // inherits pose, heading, wheelwork and disco. The chain lives
+        // in the train's local space — a `--model` wrapper pre-scales
+        // that space, so the chain counter-scales to keep lane size.
+        if carCount > 0 {
+            let nodeScale = CGFloat(train.scale.x)
+            let rearX: CGFloat
+            let bottomY: CGFloat
+            if let model {
+                rearX = model.size.width / 2
+                bottomY = -model.size.height / 2
+            } else {
+                rearX = CGFloat(train.boundingBox.max.x)
+                bottomY = 0
+            }
+            let chain = Car.cars(n: carCount)
+            chain.scale = SCNVector3(
+                carScale / nodeScale, carScale / nodeScale,
+                carScale / nodeScale)
+            chain.position = SCNVector3(
+                Float(rearX / nodeScale), Float(bottomY / nodeScale), 0)
+            train.addChildNode(chain)
         }
         scene.rootNode.addChildNode(train)
         self.train = train
@@ -139,7 +179,8 @@ public final class SceneKitRenderer: Renderer {
         let pose = trajectory.pose(at: t)
         let pivotDrop = model == nil ? CGFloat(trajectory.trainHeight) / 2 : 0
         train.position = SCNVector3(
-            CGFloat(pose.x), CGFloat(pose.y) - pivotDrop, 0)
+            CGFloat(pose.x) - consistShift,
+            CGFloat(pose.y) - pivotDrop, 0)
         train.eulerAngles.z = CGFloat(pose.heading)
         if rocking {
             screamers?.update(at: t)

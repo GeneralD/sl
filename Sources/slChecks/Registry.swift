@@ -21,6 +21,7 @@ public enum Registry {
         + screamerChecks
         + wheelworkChecks
         + dockHopChecks
+        + carChecks
         + liveryChecks
         + displayPacingChecks
 }
