@@ -37,7 +37,8 @@ MainActor.assumeIsolated {
     }
     let laneFrame = OverlayGeometry.bottomStrip(on: screen, height: 180)
     let window = OverlayWindow(frame: laneFrame)
-    let renderer = PlaceholderRenderer(spec: spec, stripWidth: laneFrame.width)
+    let renderer = PlaceholderRenderer(
+        spec: spec, stripWidth: laneFrame.width, stripHeight: laneFrame.height)
     window.contentView = renderer.makeView(
         in: NSRect(origin: .zero, size: laneFrame.size), spec: spec)
     window.orderFrontRegardless()

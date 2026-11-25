@@ -14,12 +14,14 @@ public final class PlaceholderRenderer: Renderer {
 
     public let duration: TimeInterval
 
-    public init(spec: RunSpec, stripWidth: CGFloat) {
+    public init(spec: RunSpec, stripWidth: CGFloat, stripHeight: CGFloat) {
         let trajectory = Trajectory(
             laneWidth: Double(stripWidth),
             trainWidth: Double(Self.trainSize.width),
             trainHeight: Double(Self.trainSize.height),
-            duration: 8
+            duration: 8,
+            laneHeight: Double(stripHeight),
+            fly: spec.fly
         )
         duration = trajectory.duration
         presenter = TrainPresenter(trajectory: trajectory, node: train)

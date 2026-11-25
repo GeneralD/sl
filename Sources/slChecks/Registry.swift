@@ -7,4 +7,5 @@ public enum Registry {
         runSpecChecks
         + slVersionChecks
         + trajectoryChecks
+        + flightChecks
 }

@@ -12,6 +12,10 @@ public struct RunSpec: Sendable {
     /// hold the window open until SIGTERM. `nil` = normal timed run.
     public var freezeAt: TimeInterval? = nil
 
+    /// `-F` flight: the train climbs the upstream `y = x/7` diagonal and
+    /// exits toward the upper-left instead of running the lane to its end.
+    public var fly: Bool = false
+
     /// The flag table is the single source of truth for the classic `sl`
     /// surface; each feature extends it, never the parser call sites.
     public static let usage = """
@@ -27,14 +31,25 @@ public struct RunSpec: Sendable {
         if args.contains("-v") || args.contains("--version") { spec.versionRequested = true }
         if args.contains("-h") || args.contains("--help") { spec.helpRequested = true }
         if spec.versionRequested || spec.helpRequested { return spec }
-        if let i = args.firstIndex(of: "--freeze"), i + 1 < args.count,
-           let t = TimeInterval(args[i + 1]) {
-            spec.freezeAt = t
-            return spec
+        // Skeleton: bare `sl`, `-F` and `--freeze` are valid; the rest of
+        // the classic flag surface is feature work (#11).
+        var i = 0
+        var unknown: [String] = []
+        while i < args.count {
+            let arg = args[i]
+            if arg == "-F" {
+                spec.fly = true
+                i += 1
+            } else if arg == "--freeze", i + 1 < args.count,
+                      let t = TimeInterval(args[i + 1]) {
+                spec.freezeAt = t
+                i += 2
+            } else {
+                unknown.append(arg)
+                i += 1
+            }
         }
-        // Skeleton: bare `sl` is valid (the default run). Unknown flags
-        // still error — the full classic flag surface is feature work.
-        if !args.isEmpty { spec.parseError = "unimplemented flag surface" }
+        if !unknown.isEmpty { spec.parseError = "unimplemented flag surface" }
         return spec
     }
 }
