@@ -34,7 +34,7 @@ Phase 1: repository scaffolded; spikes queued; fleet not yet running.
 
 ## Bold additions in flight
 
-- notch hop / ghost steam → kill with "drop notch" / "drop steam"
+- Dock hop / ghost steam → kill with "drop hop" / "drop steam"
 
 ## Recent decisions (3)
 

@@ -41,6 +41,7 @@
 - [init] Tests = custom `slChecks` executable (see above) + `scripts/shot`
   screenshot lane; names are spec sentences; coverage via
   `swift build --enable-code-coverage` + llvm-cov (both verified in CLT)
-- [init] Bold additions authored by orchestrator: notch hop + ghost
+- [init] Bold additions authored by orchestrator: Dock hop + ghost
   steam — both ride the trajectory/particle systems the boring tier
-  already builds
+  already builds (notch hop dropped: the lane is a bottom strip, the
+  notch never intersects it)

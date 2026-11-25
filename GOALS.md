@@ -100,8 +100,9 @@ every open window, on every Space.
 
 ## Bold additions
 
-- **Notch hop** — the train detects the camera notch on its lane and
-  launches over it instead of clipping through → provisional: do
+- **Dock hop** — the lane crosses the Dock's zone; mid-run the train
+  does a little jump over the Dock edge instead of sliding through the
+  icons → provisional: do
 - **Ghost steam** — smoke particles linger and drift for a second after
   the train exits, leaving a translucent fog trail over the windows it
   crossed → provisional: do

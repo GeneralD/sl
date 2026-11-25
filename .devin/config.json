@@ -41,6 +41,11 @@
       "Exec(uptime)",
       "Exec(sleep)",
       "Exec(mkdir)",
+      "Exec(curl)",
+      "Exec(tar)",
+      "Exec(unzip)",
+      "Exec(file)",
+      "Exec(shasum)",
       "Exec(true)",
       "Exec(false)"
     ],
