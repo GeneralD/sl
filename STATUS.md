@@ -47,4 +47,4 @@ Phase 3: five squads running; first task merged; spikes A+B verified.
 
 ## Latest screen
 
-![first overlay](docs/shots/first-overlay.png)
+![locomotive mid-run](docs/shots/loco-midrun.png)
