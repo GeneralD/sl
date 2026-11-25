@@ -45,3 +45,9 @@
   steam — both ride the trajectory/particle systems the boring tier
   already builds (notch hop dropped: the lane is a bottom strip, the
   notch never intersects it)
+- [task-34] Audio assets vendored at `share/sl/audio/` (not
+  `Sources/sl/Resources/` — keeps Package.swift and SPM resource
+  handling untouched); `make install` ships them to
+  `$(PREFIX)/share/sl/audio/`; `AudioAssets` resolves argv0-relative
+  (executable ancestor walk, then cwd ancestor walk for scratch/worktree
+  builds)

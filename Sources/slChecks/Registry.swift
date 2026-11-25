@@ -6,4 +6,5 @@ public enum Registry {
     public static let all: [Check] =
         runSpecChecks
         + slVersionChecks
+        + audioAssetChecks
 }
