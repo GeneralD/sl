@@ -18,7 +18,8 @@ public struct RunSpec: Sendable {
     public var little: Bool = false
     public var sound: Bool = false
 
-    /// `-<n>` trailing cars, 1...10. Default run pulls one car.
+    /// Trailing cars: `-<n>` pulls 1...10 (the classic contract);
+    /// `--cars <n>` accepts 0...50 — 0 runs the locomotive light.
     public var cars: Int = 1
 
     /// `-w` gust factor on the run speed; 1.0 is the calm default.
@@ -55,7 +56,7 @@ public enum ParseError: Error, Sendable, CustomStringConvertible {
     case unexpectedArgument(String)
     case missingValue(String)
     case invalidValue(String, String)
-    case invalidCarCount(Int)
+    case invalidCarCount(Int, expected: String)
 
     public var message: String {
         switch self {
@@ -64,8 +65,8 @@ public enum ParseError: Error, Sendable, CustomStringConvertible {
         case .missingValue(let flag): return "\(flag) requires a value"
         case .invalidValue(let flag, let value):
             return "\(flag): invalid value '\(value)'"
-        case .invalidCarCount(let n):
-            return "invalid car count \(n) (expected 1-10)"
+        case .invalidCarCount(let n, let expected):
+            return "invalid car count \(n) (expected \(expected))"
         }
     }
 
@@ -76,7 +77,7 @@ public extension RunSpec {
     /// Flag table matching `sl.1`; `-h` prints this.
     static func usage() -> String {
         """
-        usage: sl [-aceFGlhlsvw] [-<number-of-cars>] [--all] [--model <file>] [--freeze <seconds>] [--duration <seconds>] [--scale <factor>] [--stealth]
+        usage: sl [-aceFGlhlsvw] [-<number-of-cars>] [--cars <n>] [--all] [--model <file>] [--freeze <seconds>] [--duration <seconds>] [--scale <factor>] [--stealth]
                sl --help | --version
 
         flags:
@@ -92,6 +93,7 @@ public extension RunSpec {
           -v            print version
           -w            windy: moves faster
           -<n>          pull n trailing cars (1-10)
+          --cars N      pull N cars (0-50; 0 = locomotive only)
           --all         traverse every connected display
           --model FILE  load a .usdz/.scn/.dae locomotive ('loco' = bundled)
           --freeze SEC  render one frozen frame and hold
@@ -118,7 +120,9 @@ public extension RunSpec {
         }
 
         func setCars(_ n: Int) -> ParseError? {
-            guard (1...10).contains(n) else { return .invalidCarCount(n) }
+            guard (1...10).contains(n) else {
+                return .invalidCarCount(n, expected: "1-10")
+            }
             spec.cars = n
             return nil
         }
@@ -139,7 +143,7 @@ public extension RunSpec {
                 case "version": spec.versionRequested = true
                 case "all": spec.allDisplays = true
                 case "stealth": spec.stealth = true
-                case "model", "freeze", "duration", "scale":
+                case "model", "freeze", "duration", "scale", "cars":
                     let value: String
                     if let inline {
                         guard !inline.isEmpty else { return .failure(.missingValue("--\(name)")) }
@@ -164,6 +168,15 @@ public extension RunSpec {
                             return .failure(.invalidValue("--duration", value))
                         }
                         spec.duration = seconds
+                    } else if name == "cars" {
+                        guard let n = Int(value) else {
+                            return .failure(.invalidValue("--cars", value))
+                        }
+                        guard (0...50).contains(n) else {
+                            return .failure(.invalidCarCount(n,
+                                                           expected: "0-50"))
+                        }
+                        spec.cars = n
                     } else {
                         guard let seconds = Double(value) else {
                             return .failure(.invalidValue("--freeze", value))

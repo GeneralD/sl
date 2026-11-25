@@ -59,6 +59,13 @@ Windy. It moves faster.
 Pull
 .Ar n
 trailing cars.
+.It Fl -cars Ar n
+Pull
+.Ar n
+trailing cars (0\(en50). Unlike
+.Fl Ns Ar n ,
+zero is allowed \(em the locomotive runs light, and long counts
+outgrow the screen.
 .It Fl v
 Print version.
 .It Fl h , Fl -help
@@ -113,6 +120,10 @@ Allow Ctrl+C to stop the train.
 Windy Galaxy Express — it flies away quickly.
 .It Xo sl Fl 4 Xc
 The locomotive pulls four trailing cars.
+.It Xo sl Fl -cars Va 25 Xc
+A twenty-five car consist \(em longer than the screen itself.
+.It Xo sl Fl -cars Va 0 Xc
+The locomotive runs light, no cars at all.
 .It Xo sl Fl -all Xc
 Traverse every connected display.
 .It Xo sl Fl -model Ar file Xc

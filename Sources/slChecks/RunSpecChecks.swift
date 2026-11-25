@@ -92,6 +92,23 @@ public let runSpecChecks: [Check] = [
     Check("when invoked with -11 it reports a parse error") {
         try parseFails(["sl", "-11"])
     },
+    Check("when invoked with --cars and a count it pulls that many cars") {
+        let s = try spec(["sl", "--cars", "7"])
+        try expectEqual(s.cars, 7)
+    },
+    Check("when invoked with --cars=0 it runs the locomotive light") {
+        let s = try spec(["sl", "--cars=0"])
+        try expectEqual(s.cars, 0)
+    },
+    Check("when invoked with --cars and a non-number it reports a parse error") {
+        try parseFails(["sl", "--cars", "many"])
+    },
+    Check("when invoked with --cars beyond fifty it reports a parse error") {
+        try parseFails(["sl", "--cars", "51"])
+    },
+    Check("when invoked with --cars and no value it reports a parse error") {
+        try parseFails(["sl", "--cars"])
+    },
     Check("when invoked with --all it traverses every display") {
         try expectFlag(["sl", "--all"], \.allDisplays)
     },
@@ -140,7 +157,8 @@ public let runSpecChecks: [Check] = [
     Check("when asked for the usage it prints the whole flag table") {
         let text = RunSpec.usage()
         for flag in ["-a", "-c", "-d", "-e", "-F", "-G", "-l", "-s", "-v", "-w",
-                     "-<n>", "--all", "--model", "--freeze", "--stealth"] {
+                     "-<n>", "--cars", "--all", "--model", "--freeze",
+                     "--stealth"] {
             try expect(text.contains(flag), "usage() lacks \(flag)")
         }
     },
@@ -150,6 +168,7 @@ public let runSpecChecks: [Check] = [
             (["sl", "railway"], "unexpected argument"),
             (["sl", "--model"], "requires a value"),
             (["sl", "--freeze", "soon"], "invalid value"),
+            (["sl", "--cars", "many"], "invalid value"),
             (["sl", "-0"], "invalid car count"),
         ]
         for (args, needle) in cases {
