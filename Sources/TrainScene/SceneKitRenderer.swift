@@ -52,9 +52,14 @@ public final class SceneKitRenderer: Renderer {
         }
         livery = Self.livery(for: spec)
         locoScale = spec.little ? Self.littleScale : 1
+        // `-G` swaps the whole node builder, not just the paint: the
+        // TGV bullet is longer and lower than the D51 silhouette, so
+        // the trajectory measures whichever one will actually render.
+        let proceduralSize = spec.tgv
+            ? ProceduralTGV.size : ProceduralLocomotive.size
         let locoSize = CGSize(
-            width: ProceduralLocomotive.size.width * locoScale,
-            height: ProceduralLocomotive.size.height * locoScale)
+            width: proceduralSize.width * locoScale,
+            height: proceduralSize.height * locoScale)
         let trainSize = loaded?.size ?? locoSize
         // `-w` shortens the crossing: trajectory speed is the wheelwork's
         // clock, so the running gear spins faster with it.
@@ -71,12 +76,10 @@ public final class SceneKitRenderer: Renderer {
         duration = trajectory.duration
     }
 
-    /// `-c` selects the red C51; `-G` takes the reserved variant slot
-    /// until the TGV gets its own model.
+    /// `-c` selects the red-edged C51 livery; `-G` swaps in the TGV
+    /// node builder in `makeView`, so it needs no livery slot.
     private static func livery(for spec: RunSpec) -> Livery {
-        if spec.c51 { return .c51 }
-        if spec.tgv { return .variant }
-        return .d51
+        spec.c51 ? .c51 : .d51
     }
 
     public func makeView(in frame: NSRect, spec: RunSpec) -> NSView {
@@ -90,6 +93,8 @@ public final class SceneKitRenderer: Renderer {
         let train: SCNNode
         if let model {
             train = model.node
+        } else if spec.tgv {
+            train = ProceduralTGV(scale: locoScale).node
         } else {
             train = ProceduralLocomotive(
                 livery: livery, scale: locoScale).node
