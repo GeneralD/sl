@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import SLCore
 
@@ -7,10 +8,14 @@ import SLCore
 /// exercise the selection.
 @MainActor
 public enum RendererFactory {
-    public static func make(spec: RunSpec, stripWidth: CGFloat) -> any Renderer {
+    public static func make(spec: RunSpec, stripWidth: CGFloat,
+                            model: ModelAsset.Loaded? = nil,
+                            dock: [DockZone] = []) -> any Renderer {
         if ProcessInfo.processInfo.environment["SL_RENDERER"] == "placeholder" {
-            return PlaceholderRenderer(spec: spec, stripWidth: stripWidth)
+            return PlaceholderRenderer(
+                spec: spec, stripWidth: stripWidth, dock: dock)
         }
-        return SceneKitRenderer(spec: spec, stripWidth: stripWidth)
+        return SceneKitRenderer(
+            spec: spec, stripWidth: stripWidth, model: model, dock: dock)
     }
 }

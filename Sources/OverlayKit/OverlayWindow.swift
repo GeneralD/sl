@@ -27,6 +27,12 @@ public final class OverlayWindow: NSWindow {
         isReleasedWhenClosed = false
     }
 
+    /// `--stealth`: `.none` excludes the window from screen capture;
+    /// `.readOnly` is AppKit's default share level.
+    public func setStealth(_ enabled: Bool) {
+        sharingType = enabled ? .none : .readOnly
+    }
+
     public override var canBecomeKey: Bool { false }
     public override var canBecomeMain: Bool { false }
 }

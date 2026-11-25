@@ -51,11 +51,10 @@ public enum RunLoop {
         app.setActivationPolicy(.accessory)
 
         // Classic contract: Ctrl+C is ignored unless -e asked for it.
-        // With -e the default disposition stands and the process dies
-        // by SIGINT (~130).
-        if spec.allowInterrupt {
-            signal(SIGINT, SIG_DFL)
-        } else {
+        // With -e the disposition installed by main (the slot-releasing
+        // handler, or the default) stands and the process dies by
+        // SIGINT (~130).
+        if !spec.allowInterrupt {
             signal(SIGINT, SIG_IGN)
         }
 

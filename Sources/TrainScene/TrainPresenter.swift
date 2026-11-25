@@ -29,7 +29,9 @@ public final class TrainPresenter {
             width: trajectory.trainWidth,
             height: trajectory.trainHeight
         )
-        node.layer?.setAffineTransform(
-            CGAffineTransform(rotationAngle: pose.heading))
+        // `boundsRotation` (degrees) is the AppKit-native tilt — writing
+        // the backing layer's affine transform directly is reset by
+        // AppKit's layer-geometry sync and never reaches the screen.
+        node.boundsRotation = pose.heading * 180 / .pi
     }
 }

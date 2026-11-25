@@ -12,12 +12,15 @@ public final class PlaceholderRenderer: Renderer {
 
     public let duration: TimeInterval
 
-    public init(spec: RunSpec, stripWidth: CGFloat) {
+    public init(spec: RunSpec, stripWidth: CGFloat,
+                dock: [DockZone] = []) {
         let trajectory = Trajectory(
             laneWidth: Double(stripWidth),
             trainWidth: Double(TrainGlyph.size.width),
             trainHeight: Double(TrainGlyph.size.height),
-            duration: 8
+            duration: 8,
+            fly: spec.fly,
+            dock: dock
         )
         duration = trajectory.duration
         presenter = TrainPresenter(trajectory: trajectory, node: train)
