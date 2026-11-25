@@ -4,20 +4,30 @@ import SLCore
 import SLTestKit
 import TrainScene
 
+/// `RunSpec.parse` returns Result; these invocations always succeed.
+private func parseSpec(_ args: [String]) throws -> RunSpec {
+    switch RunSpec.parse(args) {
+    case .success(let spec): return spec
+    case .failure(let error):
+        try expect(false, "parse failed: \(error.message)")
+        fatalError("unreachable")
+    }
+}
+
 private let leftScreen = NSRect(x: 0, y: 0, width: 1000, height: 800)
 private let rightScreen = NSRect(x: 1000, y: 0, width: 1000, height: 800)
 
 public let allDisplayChecks: [Check] = [
     Check("when invoked with --all it requests every display") {
-        try expect(RunSpec.parse(["sl", "--all"]).allDisplays)
+        try expectFlagTrue(["sl", "--all"], \.allDisplays)
     },
     Check("when invoked without --all it keeps the single-display fallback") {
-        try expect(!RunSpec.parse(["sl"]).allDisplays)
+        try expectFlagFalse(["sl"], \.allDisplays)
     },
     Check("when --all is combined with --freeze it keeps the freeze offset") {
-        let spec = RunSpec.parse(["sl", "--all", "--freeze", "2.5"])
+        let spec = try parseSpec(["sl", "--all", "--freeze", "2.5"])
         try expect(spec.allDisplays)
-        try expectEqual(spec.freezeAt, 2.5)
+        try expectEqual(spec.freeze, 2.5)
     },
     Check("when building the lane from screen frames it spans every screen at the lowest bottom edge") {
         let lane = OverlayGeometry.globalLane(frames: [
@@ -71,3 +81,13 @@ public let allDisplayChecks: [Check] = [
         }
     },
 ]
+
+private func expectFlagTrue(_ args: [String], _ field: KeyPath<RunSpec, Bool>) throws {
+    let spec = try parseSpec(args)
+    try expect(spec[keyPath: field], "\(args) did not set \(field)")
+}
+
+private func expectFlagFalse(_ args: [String], _ field: KeyPath<RunSpec, Bool>) throws {
+    let spec = try parseSpec(args)
+    try expect(!spec[keyPath: field], "\(args) unexpectedly set \(field)")
+}
