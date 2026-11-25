@@ -129,6 +129,31 @@ public let modelAssetChecks: [Check] = [
             })
         }
     },
+    Check("when a model loads its box centers on the origin and the wrapper position stays free") {
+        try MainActor.assumeIsolated {
+            // The renderer writes the trajectory pose into the wrapper's
+            // position every frame, so normalization must center the
+            // content WITHOUT touching it — an offset baked into
+            // `position` is silently lost and the model renders half a
+            // height too high.
+            let dir = try writeSCNFixture(
+                "centered.scn", width: 100, height: 50, depth: 20)
+            defer { try? FileManager.default.removeItem(at: dir) }
+            let loaded = try ModelAsset.loadTrain(
+                at: dir.appendingPathComponent("centered.scn").path,
+                targetHeight: 200)
+            let p = loaded.node.position
+            try expect(p.x == 0 && p.y == 0 && p.z == 0,
+                       "wrapper position \(p) must stay free for the pose")
+            let box = loaded.node.boundingBox
+            let midX = (box.min.x + box.max.x) / 2
+            let midY = (box.min.y + box.max.y) / 2
+            let midZ = (box.min.z + box.max.z) / 2
+            try expect(abs(midX) < 0.01, "x center \(midX)")
+            try expect(abs(midY) < 0.01, "y center \(midY)")
+            try expect(abs(midZ) < 0.01, "z center \(midZ)")
+        }
+    },
     Check("when a model is supplied the SceneKit renderer holds the normalized model node") {
         try MainActor.assumeIsolated {
             let dir = try writeSCNFixture("train.scn")

@@ -99,7 +99,10 @@ public enum ModelAsset {
     /// Wraps the scene's content in a `model-loco` node scaled so the
     /// bounding-box height equals `targetHeight` (normally
     /// `locomotiveDesignHeight`), with the box center on the node
-    /// origin.
+    /// origin. The centering offset lives on an inner `model-content`
+    /// node: callers own the wrapper's position (the renderer writes
+    /// the trajectory pose into it every frame), so the wrapper
+    /// carries only scale.
     @MainActor
     private static func normalized(_ scene: SCNScene,
                                    targetHeight: CGFloat) throws -> Loaded {
@@ -114,14 +117,15 @@ public enum ModelAsset {
             throw LoadError.unreadable
         }
         let scale = targetHeight / boxHeight
+        let content = SCNNode()
+        content.name = "model-content"
+        scene.rootNode.childNodes.forEach { content.addChildNode($0) }
+        content.position = SCNVector3(
+            -(minX + maxX) / 2, -(minY + maxY) / 2, -(minZ + maxZ) / 2)
         let wrapper = SCNNode()
         wrapper.name = "model-loco"
-        scene.rootNode.childNodes.forEach { wrapper.addChildNode($0) }
         wrapper.scale = SCNVector3(scale, scale, scale)
-        wrapper.position = SCNVector3(
-            -scale * (minX + maxX) / 2,
-            -scale * (minY + maxY) / 2,
-            -scale * (minZ + maxZ) / 2)
+        wrapper.addChildNode(content)
         return Loaded(
             node: wrapper,
             size: CGSize(width: boxWidth * scale, height: boxHeight * scale))
