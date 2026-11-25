@@ -187,8 +187,9 @@ public let shotEvidenceChecks: [Check] = [
             atPath: dir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(atPath: dir) }
         let full = dir + "/full.png"
-        writePNG(solidRep(80, 60, color: gray), to: full)
-        // 80x60 cannot be any landscape display's capture aspect.
+        // 20:1 aspect matches no real display — 4:3 CI runners made
+        // the old 80x60 fixture a false positive.
+        writePNG(solidRep(400, 20, color: gray), to: full)
         let code = ShotEvidence.laneCommand([full, dir + "/out.png"])
         try expect(code == 1, "laneCommand exited \(code)")
         try expect(!FileManager.default.fileExists(atPath: dir + "/out.png"))
