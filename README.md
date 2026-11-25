@@ -83,7 +83,7 @@ man sl
 | `-w` | Windy. It moves faster. |
 | `-<n>` | Pull `n` trailing cars (1–10). |
 | `--all` | Traverse every connected display. |
-| `--model <file>` | Load a `.usdz`, `.scn` or `.dae` locomotive instead of the built-in one. |
+| `--model <file>` | Load a `.usdz`, `.scn` or `.dae` locomotive instead of the built-in one. `-<n>` then couples the bundled tender and coach cars behind it. |
 | `--scale <f>` | Train size multiplier — the default already fills a large share of the screen height. |
 | `--freeze <sec>` | Render one frozen frame and hold — the lane `scripts/shot` uses. |
 | `--stealth` | Stay invisible: hidden from screenshots and screen recording. |

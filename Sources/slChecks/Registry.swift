@@ -30,4 +30,5 @@ public enum Registry {
         + ghostSteamChecks
         + ghostSteamSnapshotChecks
         + trainScaleChecks
+        + modelConsistChecks
 }

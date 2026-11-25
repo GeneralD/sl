@@ -36,6 +36,9 @@ public final class SceneKitRenderer: Renderer {
     /// trajectory width and the node tree agree.
     private var carCount: Int = 0
     private var carScale: CGFloat = 1
+    /// `--model` runs couple the bundled tender/coaches instead of
+    /// procedural cars; empty when no model or the assets are missing.
+    private var modelCars: [ModelConsist.Car] = []
     private var screamers: ScreamerField?
     /// `-a` panic: the loco rocks slightly while screamers pop.
     private var rocking = false
@@ -124,7 +127,17 @@ public final class SceneKitRenderer: Renderer {
         }
         carCount = spec.cars
         carScale = locoScale
-        let carsLength = Car.chainLength(n: carCount, scale: carScale)
+        // `--model` in play: couple the bundled tender/coaches (real
+        // proportions, lengths feed the trajectory); a missing asset
+        // falls back to procedural cars rather than a bare loco.
+        let carsLength: CGFloat
+        if loaded != nil, carCount > 0,
+           let consist = ModelConsist.load(carCount: carCount) {
+            modelCars = consist
+            carsLength = ModelConsist.chainLength(cars: consist) * carScale
+        } else {
+            carsLength = Car.chainLength(n: carCount, scale: carScale)
+        }
         consistShift = carsLength / 2
         // `-w` shortens the crossing: trajectory speed is the wheelwork's
         // clock, so the running gear spins faster with it. The consist
@@ -188,7 +201,9 @@ public final class SceneKitRenderer: Renderer {
                 rearX = CGFloat(train.boundingBox.max.x)
                 bottomY = 0
             }
-            let chain = Car.cars(n: carCount)
+            let chain = modelCars.isEmpty
+                ? Car.cars(n: carCount)
+                : ModelConsist.chain(cars: modelCars)
             chain.scale = SCNVector3(
                 carScale / nodeScale, carScale / nodeScale,
                 carScale / nodeScale)
