@@ -26,7 +26,8 @@ public final class SceneKitRenderer: Renderer {
             laneWidth: Double(stripWidth),
             trainWidth: Double(Self.trainSize.width),
             trainHeight: Double(Self.trainSize.height),
-            duration: 8
+            duration: 8,
+            fly: spec.fly
         )
         self.trajectory = trajectory
         duration = trajectory.duration

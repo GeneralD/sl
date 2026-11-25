@@ -48,7 +48,7 @@ MainActor.assumeIsolated {
     let freeze: @MainActor (TimeInterval) -> Void
 
     if spec.allDisplays {
-        let stage = MultiScreenTrain(lane: lane)
+        let stage = MultiScreenTrain(lane: lane, fly: spec.fly)
         for screen in screens {
             let strip = OverlayGeometry.bottomStrip(
                 on: screen, height: OverlayGeometry.laneHeight)

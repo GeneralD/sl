@@ -53,6 +53,7 @@
 - [task-13] `TrainPresenter` applies poses to the lane `NSView` today;
   the SceneKit `SCNNode` swap keeps the same `update(t:)` call (no
   SceneKit renderer exists yet — presenter stays view-agnostic)
+- [task-26] -F fly: literal upstream port — `y = (laneWidth - x)/7 + trainHeight/2` in y-up lane points (slope exactly 1/7, nose-up tilt `-atan(1/7)`); the strip window is kept, so the train exits through the strip's top edge in the upper-left region rather than the screen corner. Tilt goes through `NSView.boundsRotation`: the backing layer's affine transform is reset by AppKit's layer-geometry sync and never renders
 - [spike-b #3] SceneKit committed: `SCNView` composites a transparent
   background into the overlay on this stack — clear `backgroundColor`,
   non-opaque layer, and clear `scene.background.contents` are sufficient;

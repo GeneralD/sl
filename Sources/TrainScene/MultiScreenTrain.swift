@@ -34,13 +34,14 @@ public final class MultiScreenTrain {
 
     private var screens: [(frame: NSRect, node: NSView)] = []
 
-    public init(lane: NSRect, duration: TimeInterval = 8) {
+    public init(lane: NSRect, duration: TimeInterval = 8, fly: Bool = false) {
         self.lane = lane
         trajectory = Trajectory(
             laneWidth: Double(lane.width),
             trainWidth: Double(TrainGlyph.size.width),
             trainHeight: Double(TrainGlyph.size.height),
-            duration: duration
+            duration: duration,
+            fly: fly
         )
     }
 
@@ -69,6 +70,7 @@ public final class MultiScreenTrain {
                 train, onScreenFrame: screen.frame, laneHeight: lane.height)
             screen.node.frame = OverlayGeometry.localRect(
                 train, onScreenFrame: screen.frame)
+            screen.node.boundsRotation = pose.heading * 180 / .pi
         }
     }
 }
