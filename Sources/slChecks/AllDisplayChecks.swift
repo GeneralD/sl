@@ -4,28 +4,29 @@ import SLCore
 import SLTestKit
 import TrainScene
 
-/// `RunSpec.parse` returns Result; these invocations always succeed.
-private func parseSpec(_ args: [String]) throws -> RunSpec {
+private let leftScreen = NSRect(x: 0, y: 0, width: 1000, height: 800)
+private let rightScreen = NSRect(x: 1000, y: 0, width: 1000, height: 800)
+
+private func spec(_ args: [String]) throws -> RunSpec {
     switch RunSpec.parse(args) {
     case .success(let spec): return spec
     case .failure(let error):
         try expect(false, "parse failed: \(error.message)")
-        fatalError("unreachable")
+        fatalError("unreachable: expect(false) always throws")
     }
 }
 
-private let leftScreen = NSRect(x: 0, y: 0, width: 1000, height: 800)
-private let rightScreen = NSRect(x: 1000, y: 0, width: 1000, height: 800)
-
 public let allDisplayChecks: [Check] = [
     Check("when invoked with --all it requests every display") {
-        try expectFlagTrue(["sl", "--all"], \.allDisplays)
+        let parsed = try spec(["sl", "--all"])
+        try expect(parsed.allDisplays)
     },
     Check("when invoked without --all it keeps the single-display fallback") {
-        try expectFlagFalse(["sl"], \.allDisplays)
+        let parsed = try spec(["sl"])
+        try expect(!parsed.allDisplays)
     },
     Check("when --all is combined with --freeze it keeps the freeze offset") {
-        let spec = try parseSpec(["sl", "--all", "--freeze", "2.5"])
+        let spec = try spec(["sl", "--all", "--freeze", "2.5"])
         try expect(spec.allDisplays)
         try expectEqual(spec.freeze, 2.5)
     },
@@ -81,13 +82,3 @@ public let allDisplayChecks: [Check] = [
         }
     },
 ]
-
-private func expectFlagTrue(_ args: [String], _ field: KeyPath<RunSpec, Bool>) throws {
-    let spec = try parseSpec(args)
-    try expect(spec[keyPath: field], "\(args) did not set \(field)")
-}
-
-private func expectFlagFalse(_ args: [String], _ field: KeyPath<RunSpec, Bool>) throws {
-    let spec = try parseSpec(args)
-    try expect(!spec[keyPath: field], "\(args) unexpectedly set \(field)")
-}

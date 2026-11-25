@@ -40,6 +40,7 @@ MainActor.assumeIsolated {
         exit(1)
     }
 
+
     // The run's per-frame driver: the single-display renderer, or the
     // multi-display stage under --all (one window per screen).
     let duration: TimeInterval
@@ -80,6 +81,7 @@ MainActor.assumeIsolated {
     }
 
     if let freezeAt = spec.freeze {
+
         freezeMode = true
         freeze(freezeAt)
     } else {
