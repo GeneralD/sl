@@ -96,6 +96,10 @@ MainActor.assumeIsolated {
         }
     }
 
+    // Dock zones the train hops over, in lane-local x — one per
+    // bottom-Docked screen, empty when no Dock is present.
+    let dockZones = OverlayGeometry.dockZones(on: screens, lane: lane)
+
     // The run's per-frame driver: the single-display renderer, or the
     // multi-display stage under --all (one window per screen).
     let duration: TimeInterval
@@ -104,7 +108,8 @@ MainActor.assumeIsolated {
     let ui = RunUI()
 
     if spec.allDisplays {
-        let stage = MultiScreenTrain(lane: lane, fly: spec.fly)
+        let stage = MultiScreenTrain(
+            lane: lane, fly: spec.fly, dock: dockZones)
         for screen in screens {
             let strip = OverlayGeometry.bottomStrip(
                 on: screen, height: OverlayGeometry.laneHeight)
@@ -129,7 +134,8 @@ MainActor.assumeIsolated {
         freeze = { stage.update(t: $0) }
     } else {
         let renderer = RendererFactory.make(
-            spec: spec, stripWidth: lane.width, model: model)
+            spec: spec, stripWidth: lane.width, model: model,
+            dock: dockZones)
         let window = OverlayWindow(frame: lane)
         window.contentView = renderer.makeView(
             in: NSRect(origin: .zero, size: lane.size), spec: spec)

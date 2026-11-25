@@ -75,3 +75,4 @@
   `SCNView` + ortho pixel-space camera + ambient/directional lights +
   placeholder primitive driven by `Trajectory`; `SL_RENDERER=placeholder`
   keeps the skeleton view for A/B debugging
+- [task-28] Dock hop: zone detected via `visibleFrame.minY - frame.minY` > 8 (bottom Dock only — a side Dock insets minX/maxX); the Dock's width is not public API, so the hop zone approximates it as a centered strip capped at 600pt; hop = 40px parabola + 0.15 rad pitch, skipped under `-F` flight; `--all` collects one zone per screen mapped into global lane coords

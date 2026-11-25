@@ -40,7 +40,8 @@ public final class SceneKitRenderer: Renderer {
     /// defensively — `sl` preflights the load so a bad path exits 2
     /// before the window opens.
     public init(spec: RunSpec, stripWidth: CGFloat,
-                model: ModelAsset.Loaded? = nil) {
+                model: ModelAsset.Loaded? = nil,
+                dock: [DockZone] = []) {
         let loaded = model ?? spec.model.flatMap {
             try? ModelAsset.loadTrain(
                 at: $0, targetHeight: OverlayGeometry.laneHeight)
@@ -56,7 +57,8 @@ public final class SceneKitRenderer: Renderer {
             trainWidth: Double(trainSize.width),
             trainHeight: Double(trainSize.height),
             duration: 8,
-            fly: spec.fly
+            fly: spec.fly,
+            dock: dock
         )
         self.trajectory = trajectory
         self.model = loaded

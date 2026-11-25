@@ -17,4 +17,5 @@ public enum Registry {
         + discoChecks
         + hardeningChecks
         + modelAssetChecks
+        + dockHopChecks
 }
