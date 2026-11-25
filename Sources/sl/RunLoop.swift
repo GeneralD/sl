@@ -87,7 +87,17 @@ public enum RunLoop {
             }
             guard let reason else { return true }
             outcome.reason = reason
-            app.terminate(nil)
+            app.stop(nil)
+            // stop() only requests the loop to exit — post a dummy
+            // event so app.run() returns promptly (Gemini review on #57:
+            // terminate() would exit the process before the exit code
+            // can be returned).
+            if let event = NSEvent.otherEvent(
+                with: .applicationDefined, location: .zero,
+                modifierFlags: [], timestamp: 0, windowNumber: 0,
+                context: nil, subtype: 0, data1: 0, data2: 0) {
+                app.postEvent(event, atStart: false)
+            }
             return false
         }
 
