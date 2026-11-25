@@ -15,15 +15,19 @@ import SLCore
 @MainActor
 public final class SceneKitRenderer: Renderer {
     /// Placeholder silhouette until the locomotive scene graph lands.
-    private static let trainSize = CGSize(width: 220, height: 90)
+    private static let placeholderSize = CGSize(width: 220, height: 90)
 
     private let trajectory: Trajectory
     private let model: ModelAsset.Loaded?
+    private let trainSize: CGSize
     private weak var train: SCNNode?
     private var locoMaterials: [SCNMaterial] = []
     private weak var ambientNode: SCNNode?
     private weak var keyNode: SCNNode?
     private var disco: DiscoTimeline?
+    private var screamers: ScreamerField?
+    /// `-a` panic: the loco rocks slightly while screamers pop.
+    private var rocking = false
 
     /// Two strobe colors the scene lights alternate between under `-d`.
     private static let discoPalette = [
@@ -44,7 +48,7 @@ public final class SceneKitRenderer: Renderer {
             try? ModelAsset.loadTrain(
                 at: $0, targetHeight: OverlayGeometry.laneHeight)
         }
-        let trainSize = loaded?.size ?? Self.trainSize
+        let trainSize = loaded?.size ?? Self.placeholderSize
         let trajectory = Trajectory(
             laneWidth: Double(stripWidth),
             trainWidth: Double(trainSize.width),
@@ -54,6 +58,7 @@ public final class SceneKitRenderer: Renderer {
         )
         self.trajectory = trajectory
         self.model = loaded
+        self.trainSize = trainSize
         duration = trajectory.duration
     }
 
@@ -87,6 +92,12 @@ public final class SceneKitRenderer: Renderer {
         // changes and render(at:) mutates node transforms every frame.
         view.rendersContinuously = false
         disco = spec.disco ? DiscoTimeline() : nil
+        rocking = spec.accident
+        if spec.accident {
+            let field = ScreamerField(trainSize: trainSize)
+            train.addChildNode(field.root)
+            screamers = field
+        }
         return view
     }
 
@@ -103,6 +114,12 @@ public final class SceneKitRenderer: Renderer {
             train.eulerAngles.y = CGFloat(t * 0.9)
         }
         train.eulerAngles.z = CGFloat(pose.heading)
+        if rocking {
+            screamers?.update(at: t)
+            // Slight panic roll toward the camera — small enough to
+            // read as distress, not a crash.
+            train.eulerAngles.x = CGFloat(sin(t * 2.6) * 0.045)
+        }
         if let disco {
             applyDisco(t: t, timeline: disco)
         }
@@ -170,8 +187,8 @@ public final class SceneKitRenderer: Renderer {
 
     private static func placeholderGeometry() -> SCNGeometry {
         let box = SCNBox(
-            width: trainSize.width, height: trainSize.height,
-            length: trainSize.height, chamferRadius: 10)
+            width: placeholderSize.width, height: placeholderSize.height,
+            length: placeholderSize.height, chamferRadius: 10)
         let material = SCNMaterial()
         material.diffuse.contents = NSColor(
             calibratedRed: 0.62, green: 0.25, blue: 0.18, alpha: 1)

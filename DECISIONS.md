@@ -75,3 +75,9 @@
   `SCNView` + ortho pixel-space camera + ambient/directional lights +
   placeholder primitive driven by `Trajectory`; `SL_RENDERER=placeholder`
   keeps the skeleton view for A/B debugging
+- [task-37] `-a` visual half: `ScreamerField` hangs dark `car-window`
+  planes with two figure sprites each off the train node; pop cycles are
+  pure functions of `t` (golden-ratio phases, ~1.15 s period). Loco
+  "rock" is a ±0.045 rad roll on `eulerAngles.x`. `RunSpec.wantScreams`
+  is a computed `accident` passthrough — the audio engine (#35) reads
+  it; `-s` still gates actual sound.
