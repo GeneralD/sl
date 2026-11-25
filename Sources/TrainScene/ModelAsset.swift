@@ -3,9 +3,10 @@ import SceneKit
 
 /// User-supplied locomotive swap (`--model`): loads .usdz/.scn/.dae via
 /// `SCNScene(url:)` — never a bare `MDLAsset`, which renders untextured
-/// (docs/adr/scene.md) — and normalizes the bounding box so the model's
-/// height equals the lane height, centered on the node origin like the
-/// procedural loco. glTF/GLB is NOT loadable; the supported set is
+/// (docs/adr/scene.md) — and normalizes the bounding box to the
+/// locomotive's design height, centered on the node origin like the
+/// procedural loco; the renderer's `locoScale` then lands it at the
+/// same on-screen size. glTF/GLB is NOT loadable; the supported set is
 /// documented in `sl.1`, the README and the usage text.
 public enum ModelAsset {
     /// A loaded, normalized train ready to drop into the scene graph.
@@ -55,8 +56,9 @@ public enum ModelAsset {
     }
 
     /// Wraps the scene's content in a `model-loco` node scaled so the
-    /// bounding-box height equals `targetHeight`, with the box center on
-    /// the node origin — the same anchor the placeholder geometry uses.
+    /// bounding-box height equals `targetHeight` (the locomotive's
+    /// design height), with the box center on the node origin — the
+    /// same anchor the placeholder geometry uses.
     @MainActor
     private static func normalized(_ scene: SCNScene,
                                    targetHeight: CGFloat) throws -> Loaded {

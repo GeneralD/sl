@@ -17,6 +17,9 @@ public final class SceneKitRenderer: Renderer {
     private let model: ModelAsset.Loaded?
     private let livery: Livery
     private let locoScale: CGFloat
+    /// Lane strip height in points — the ghost-steam clamps are
+    /// fractions of the design lane, so they follow the real strip.
+    private let laneHeight: CGFloat
     private weak var train: SCNNode?
     private var locoMaterials: [SCNMaterial] = []
     private var wheelwork: WheelworkAnimator?
@@ -52,7 +55,7 @@ public final class SceneKitRenderer: Renderer {
         NSColor(calibratedRed: 0.1, green: 0.9, blue: 1.0, alpha: 1),   // cyan
     ]
 
-    /// `-l` miniature factor (~0.6 of lane height); 1 is full size.
+    /// `-l` miniature factor; multiplies the lane scale like `--scale`.
     private static let littleScale: CGFloat = 0.6
 
     /// Seconds the window holds after the consist clears the lane so
@@ -69,15 +72,31 @@ public final class SceneKitRenderer: Renderer {
     /// stands in. A `spec.model` with no `model` argument re-loads
     /// defensively — `sl` preflights the load so a bad path exits 2
     /// before the window opens.
+    ///
+    /// `laneHeight` is the strip's height in points: the lane grew to
+    /// ~60% of screen height, so the whole scene scales by
+    /// `laneHeight / referenceLaneHeight` on top of `--scale`/`-l`.
     public init(spec: RunSpec, stripWidth: CGFloat,
                 model: ModelAsset.Loaded? = nil,
-                dock: [DockZone] = []) {
+                dock: [DockZone] = [],
+                laneHeight: CGFloat = OverlayGeometry.referenceLaneHeight) {
+        precondition(laneHeight > 0)
+        self.laneHeight = laneHeight
+        // The lane-height ratio scales every lane-fraction of the
+        // design scene; `--scale` and `-l` multiply on top. A model
+        // is normalized to the locomotive's design height, so the
+        // same `locoScale` lands it at the procedural loco's size.
+        let laneScale = laneHeight / OverlayGeometry.referenceLaneHeight
+        let userScale = spec.scale.isFinite && spec.scale > 0
+            ? spec.scale : 1
         let loaded = model ?? spec.model.flatMap {
             try? ModelAsset.loadTrain(
-                at: $0, targetHeight: OverlayGeometry.laneHeight)
+                at: $0, targetHeight: ProceduralLocomotive.size.height)
         }
         livery = Self.livery(for: spec)
-        locoScale = spec.little ? Self.littleScale : 1
+        locoScale = laneScale
+            * (spec.little ? Self.littleScale : 1)
+            * CGFloat(userScale)
         // `-G` swaps the whole node builder, not just the paint: the
         // TGV bullet is longer and lower than the D51 silhouette, so
         // the trajectory measures whichever one will actually render.
@@ -86,9 +105,9 @@ public final class SceneKitRenderer: Renderer {
         let locoSize = CGSize(
             width: proceduralSize.width * locoScale,
             height: proceduralSize.height * locoScale)
-        // `-l` shrinks the whole consist: a `--model` asset is
-        // normalized to lane height, so its node scale and reported
-        // size take the miniature factor too.
+        // `-l`/`--scale` shrink or grow the whole consist: a `--model`
+        // asset is normalized to the locomotive's design height, so
+        // its node scale and reported size take the same factor.
         let trainSize: CGSize
         if let loaded {
             trainSize = CGSize(
@@ -250,8 +269,12 @@ public final class SceneKitRenderer: Renderer {
         // emitter onto the lane's left end, where the train was last
         // seen, and lift it into the lane band so the fog hangs over
         // the lane. (The emitter's 240-wide shell spans x±120.)
+        // The y clamps are fractions of the design lane — the strip
+        // is taller now, so they scale with `laneHeight`.
         origin.x = min(max(origin.x, 160), 200)
-        origin.y = min(max(origin.y, 40), 160)
+        let design = OverlayGeometry.referenceLaneHeight
+        origin.y = min(max(origin.y,
+            laneHeight * 40 / design), laneHeight * 160 / design)
         let node = ghostSteamEmitter(scale: locoScale)
         node.position = origin
         scene.rootNode.addChildNode(node)

@@ -36,20 +36,24 @@ public enum ShotEvidence {
     }
 
     /// Pixel rect (top-left origin) of the lane strip plus `margin`
-    /// inside a capture of `screen`. Returns nil when the image cannot
-    /// be that display — aspect mismatch means a composite or wrong
-    /// `-D`, and cropping it would produce garbage evidence.
+    /// inside a capture of `screen`. The strip is `laneFraction` of the
+    /// screen's height — pass `laneHeight` only to override. Returns
+    /// nil when the image cannot be that display — aspect mismatch
+    /// means a composite or wrong `-D`, and cropping it would produce
+    /// garbage evidence.
     public static func lanePixelRect(
         screenFrame: NSRect, imageSize: NSSize,
         margin: CGFloat = defaultMargin,
-        laneHeight: CGFloat = OverlayGeometry.laneHeight
+        laneHeight: CGFloat? = nil
     ) -> NSRect? {
         guard screenFrame.width > 0, screenFrame.height > 0,
               imageSize.width > 0, imageSize.height > 0 else { return nil }
         let scaleX = imageSize.width / screenFrame.width
         let scaleY = imageSize.height / screenFrame.height
         guard abs(scaleX - scaleY) / scaleY < 0.02 else { return nil }
-        let stripPx = (laneHeight + margin) * scaleY
+        let laneH = laneHeight
+            ?? OverlayGeometry.laneHeight(onScreenHeight: screenFrame.height)
+        let stripPx = (laneH + margin) * scaleY
         guard stripPx <= imageSize.height else { return nil }
         return NSRect(x: 0, y: imageSize.height - stripPx,
                       width: imageSize.width, height: stripPx)
@@ -286,16 +290,20 @@ public enum ShotEvidence {
 
     /// Renders the lane strip offscreen at `freezeAt` and returns the
     /// snapshot — deterministic evidence with no desktop content at
-    /// all. `stripWidth` defaults to the main screen's width in points.
+    /// all. `stripWidth` defaults to the main screen's width in points;
+    /// the strip height is the main screen's lane fraction.
     @MainActor
     public static func renderLanePNG(spec: RunSpec,
                                      freezeAt: TimeInterval,
                                      stripWidth: CGFloat? = nil)
         -> NSBitmapImageRep? {
-        let width = stripWidth ?? NSScreen.main?.frame.width ?? 1920
-        let frame = NSRect(x: 0, y: 0, width: width,
-                           height: OverlayGeometry.laneHeight)
-        let renderer = SceneKitRenderer(spec: spec, stripWidth: width)
+        let screen = NSScreen.main
+        let width = stripWidth ?? screen?.frame.width ?? 1920
+        let laneH = OverlayGeometry.laneHeight(
+            onScreenHeight: screen?.frame.height ?? 1080)
+        let frame = NSRect(x: 0, y: 0, width: width, height: laneH)
+        let renderer = SceneKitRenderer(
+            spec: spec, stripWidth: width, laneHeight: laneH)
         guard let view = renderer.makeView(in: frame, spec: spec)
                 as? SCNView else { return nil }
         view.frame = frame

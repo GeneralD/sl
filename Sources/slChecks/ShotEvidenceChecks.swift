@@ -52,7 +52,7 @@ public let shotEvidenceChecks: [Check] = [
             margin: 60)
         try expect(rect != nil, "lane rect refused a matching capture")
         let r = rect!
-        let stripPx = (OverlayGeometry.laneHeight + 60) * 2
+        let stripPx = (OverlayGeometry.laneHeight(onScreenHeight: 982) + 60) * 2
         try expect(abs(r.width - 3024) < 1)
         try expect(abs(r.height - stripPx) < 1)
         try expect(abs(r.minY - (1964 - stripPx)) < 1)

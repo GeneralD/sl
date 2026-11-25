@@ -22,6 +22,7 @@
 .Fl -all |
 .Fl -freeze Ar seconds |
 .Fl -duration Ar seconds |
+.Fl -scale Ar factor |
 .Fl -stealth
 .Sh DESCRIPTION
 .Nm
@@ -67,8 +68,8 @@ Print version and exit. Long form of
 .Fl v .
 .It Fl -model Ar file
 Load a .usdz, .scn or .dae locomotive instead of the built-in one.
-glTF and GLB are not supported. The model is scaled to the lane
-height; a missing or unreadable file exits with status 2.
+glTF and GLB are not supported. The model is scaled to the
+locomotive's height; a missing or unreadable file exits with status 2.
 .It Fl -all
 Traverse every connected display.
 .It Fl -freeze Ar seconds
@@ -77,6 +78,10 @@ Render one frozen frame and hold. For screenshots.
 Cap the run at
 .Ar seconds .
 The default is 10 seconds, never past the train's own crossing time.
+.It Fl -scale Ar factor
+Scale the train. The default is already near screen-filling;
+.Ar factor
+multiplies it (must be positive). Smoke, cars and effects follow.
 .It Fl -stealth
 Stay invisible: the train is hidden from screenshots and screen
 recording.

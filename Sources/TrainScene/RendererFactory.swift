@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import OverlayKit
 import SLCore
 
 /// Picks the renderer for a run. SceneKit is the committed renderer
@@ -10,12 +11,16 @@ import SLCore
 public enum RendererFactory {
     public static func make(spec: RunSpec, stripWidth: CGFloat,
                             model: ModelAsset.Loaded? = nil,
-                            dock: [DockZone] = []) -> any Renderer {
+                            dock: [DockZone] = [],
+                            laneHeight: CGFloat = OverlayGeometry
+                                .referenceLaneHeight) -> any Renderer {
         if ProcessInfo.processInfo.environment["SL_RENDERER"] == "placeholder" {
             return PlaceholderRenderer(
-                spec: spec, stripWidth: stripWidth, dock: dock)
+                spec: spec, stripWidth: stripWidth, dock: dock,
+                laneHeight: laneHeight)
         }
         return SceneKitRenderer(
-            spec: spec, stripWidth: stripWidth, model: model, dock: dock)
+            spec: spec, stripWidth: stripWidth, model: model, dock: dock,
+            laneHeight: laneHeight)
     }
 }

@@ -182,20 +182,24 @@ case .failure(let refusal):
 // --- Overlay run -------------------------------------------------------
 let code = MainActor.assumeIsolated { () -> Int32 in
     let screens = OverlayGeometry.runScreens(all: spec.allDisplays)
+    // The lane strip is a fraction of screen height — tall enough that
+    // the default train fills a large share of the display.
+    let laneHeight = OverlayGeometry.laneHeight(
+        onScreenHeight: screens.map(\.frame.height).max() ?? 0)
     guard let lane = OverlayGeometry.lane(
-        on: screens, height: OverlayGeometry.laneHeight) else {
+        on: screens, height: laneHeight) else {
         FileHandle.standardError.write(Data("sl: no display attached\n".utf8))
         return ExitReason.noDisplay.exitCode
     }
 
     // `--model` preflight: a missing or unloadable asset is a usage
     // error — stderr + exit 2 before any window opens. The loaded,
-    // lane-height-normalized node is handed to the renderer once.
+    // locomotive-height-normalized node is handed to the renderer once.
     var model: ModelAsset.Loaded?
     if let path = spec.model {
         do {
             model = try ModelAsset.loadTrain(
-                at: path, targetHeight: OverlayGeometry.laneHeight)
+                at: path, targetHeight: ProceduralLocomotive.size.height)
         } catch {
             FileHandle.standardError.write(Data(
                 "sl: cannot load model '\(path)': \(error)\n".utf8))
@@ -212,10 +216,11 @@ let code = MainActor.assumeIsolated { () -> Int32 in
 
     if spec.allDisplays {
         let stage = MultiScreenTrain(
-            lane: lane, fly: spec.fly, dock: dockZones)
+            lane: lane, fly: spec.fly, dock: dockZones,
+            scale: CGFloat(spec.scale))
         for screen in screens {
             let strip = OverlayGeometry.bottomStrip(
-                on: screen, height: OverlayGeometry.laneHeight)
+                on: screen, height: laneHeight)
             let window = OverlayWindow(frame: strip)
             let content = NSView(frame: NSRect(origin: .zero, size: strip.size))
             content.wantsLayer = true
@@ -233,7 +238,7 @@ let code = MainActor.assumeIsolated { () -> Int32 in
     } else {
         let renderer = RendererFactory.make(
             spec: spec, stripWidth: lane.width, model: model,
-            dock: dockZones)
+            dock: dockZones, laneHeight: laneHeight)
         let window = OverlayWindow(frame: lane)
         window.contentView = renderer.makeView(
             in: NSRect(origin: .zero, size: lane.size), spec: spec)

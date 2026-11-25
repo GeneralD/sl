@@ -17,7 +17,7 @@ public func attachLocomotiveEffects(to loco: SCNNode, scale: CGFloat = 1) {
     if let headlight = loco.childNode(withName: "headlight", recursively: true) {
         lampGlow(headlight)
         headlight.addChildNode(headlightBeam(scale: scale))
-        headlight.addChildNode(headlightSpot())
+        headlight.addChildNode(headlightSpot(scale: scale))
     }
     if let cab = loco.childNode(withName: "cab", recursively: true) {
         cabGlow(cab)
@@ -197,8 +197,9 @@ private func headlightBeam(scale s: CGFloat) -> SCNNode {
 
 /// Real illumination for whatever the beam crosses: a spot on the
 /// lamp node aimed down the same -x axis (light travels along the
-/// node's negative z, so yaw π/2).
-private func headlightSpot() -> SCNNode {
+/// node's negative z, so yaw π/2). `scale` stretches the attenuation
+/// reach with the beam so the pool still lands ahead of the nose.
+private func headlightSpot(scale s: CGFloat) -> SCNNode {
     let node = SCNNode()
     node.name = "headlight-spot"
     node.eulerAngles.y = .pi / 2
@@ -208,7 +209,7 @@ private func headlightSpot() -> SCNNode {
     light.intensity = 900
     light.spotInnerAngle = 18
     light.spotOuterAngle = 40
-    light.attenuationEndDistance = 700
+    light.attenuationEndDistance = 700 * s
     node.light = light
     return node
 }
