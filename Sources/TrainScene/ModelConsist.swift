@@ -28,8 +28,9 @@ public enum ModelConsist {
 
     /// Bundled asset file names in coupling order for `n` requested
     /// cars: the tender always couples closest to the loco, coaches
-    /// fill the rest.
+    /// fill the rest. `--cars 0` yields an empty consist.
     public static func assetNames(carCount n: Int) -> [String] {
+        guard n > 0 else { return [] }
         guard n > 1 else { return ["tender.usdz"] }
         return ["tender.usdz"]
             + Array(repeating: "coach.usdz", count: n - 1)

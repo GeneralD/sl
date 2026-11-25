@@ -55,6 +55,8 @@ public let modelConsistChecks: [Check] = [
                         ["tender.usdz", "coach.usdz", "coach.usdz"])
         try expectEqual(ModelConsist.assetNames(carCount: 1),
                         ["tender.usdz"])
+        try expect(ModelConsist.assetNames(carCount: 0).isEmpty,
+                   "zero cars should name no assets")
     },
     Check("when the bundled consist loads every car keeps real-world height proportion to the loco") {
         try MainActor.assumeIsolated {
