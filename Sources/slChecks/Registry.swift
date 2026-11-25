@@ -25,4 +25,6 @@ public enum Registry {
         + carChecks
         + liveryChecks
         + displayPacingChecks
+        + ghostSteamChecks
+        + ghostSteamSnapshotChecks
 }

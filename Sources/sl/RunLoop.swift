@@ -20,6 +20,19 @@ public protocol FrameDriver {
 
     /// Pin the scene to `t` (`--freeze` shot mode).
     func render(at t: TimeInterval)
+
+    /// Total seconds the scene asks the run loop to hold after the
+    /// train exits — ghost steam dissipating before the finish fade.
+    /// 0 for drivers with no post-exit scene.
+    var postExitHold: TimeInterval { get }
+
+    /// Post-exit hold still owed at `t`; 0 once the trail has decayed.
+    func postExitRemaining(at t: TimeInterval) -> TimeInterval
+}
+
+public extension FrameDriver {
+    var postExitHold: TimeInterval { 0 }
+    func postExitRemaining(at t: TimeInterval) -> TimeInterval { 0 }
 }
 
 /// The process contract: NSApplication run, run duration, watchdog,
