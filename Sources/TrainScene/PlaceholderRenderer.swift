@@ -17,7 +17,8 @@ public final class PlaceholderRenderer: Renderer {
             laneWidth: Double(stripWidth),
             trainWidth: Double(TrainGlyph.size.width),
             trainHeight: Double(TrainGlyph.size.height),
-            duration: 8
+            duration: 8,
+            fly: spec.fly
         )
         duration = trajectory.duration
         presenter = TrainPresenter(trajectory: trajectory, node: train)

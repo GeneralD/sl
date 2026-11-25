@@ -4,6 +4,14 @@ import SLCore
 import SLTestKit
 import TrainScene
 
+/// `RunSpec.parse` returns Result; a bare `["sl"]` always succeeds.
+private func defaultSpec() -> RunSpec {
+    switch RunSpec.parse(["sl"]) {
+    case .success(let spec): return spec
+    case .failure(let error): fatalError("default spec must parse: \(error)")
+    }
+}
+
 private func withRendererEnv<T>(_ value: String?, _ body: () throws -> T) rethrows -> T {
     let had = getenv("SL_RENDERER")
     let saved = had.map { String(cString: $0) }
@@ -22,7 +30,7 @@ private func sceneKitScene(
 ) -> SCNScene? {
     guard let view = renderer.makeView(
         in: NSRect(x: 0, y: 0, width: width, height: height),
-        spec: RunSpec.parse(["sl"])) as? SCNView else { return nil }
+        spec: defaultSpec()) as? SCNView else { return nil }
     return view.scene
 }
 
@@ -30,7 +38,7 @@ public let sceneKitChecks: [Check] = [
     Check("when SL_RENDERER is unset the factory returns the SceneKit renderer") {
         try MainActor.assumeIsolated {
             let renderer = withRendererEnv(nil) {
-                RendererFactory.make(spec: RunSpec.parse(["sl"]), stripWidth: 1000)
+                RendererFactory.make(spec: defaultSpec(), stripWidth: 1000)
             }
             try expect(renderer is SceneKitRenderer)
         }
@@ -38,17 +46,17 @@ public let sceneKitChecks: [Check] = [
     Check("when SL_RENDERER is placeholder the factory returns the placeholder renderer") {
         try MainActor.assumeIsolated {
             let renderer = withRendererEnv("placeholder") {
-                RendererFactory.make(spec: RunSpec.parse(["sl"]), stripWidth: 1000)
+                RendererFactory.make(spec: defaultSpec(), stripWidth: 1000)
             }
             try expect(renderer is PlaceholderRenderer)
         }
     },
     Check("when asked for its view the SceneKit renderer returns a clear SCNView") {
         try MainActor.assumeIsolated {
-            let renderer = SceneKitRenderer(spec: RunSpec.parse(["sl"]), stripWidth: 1000)
+            let renderer = SceneKitRenderer(spec: defaultSpec(), stripWidth: 1000)
             guard let view = renderer.makeView(
                 in: NSRect(x: 0, y: 0, width: 1000, height: 180),
-                spec: RunSpec.parse(["sl"])) as? SCNView else {
+                spec: defaultSpec()) as? SCNView else {
                 try expect(false, "view is not an SCNView")
                 return
             }
@@ -58,7 +66,7 @@ public let sceneKitChecks: [Check] = [
     },
     Check("when asked for its view the SceneKit renderer configures a pixel-space ortho camera") {
         try MainActor.assumeIsolated {
-            let renderer = SceneKitRenderer(spec: RunSpec.parse(["sl"]), stripWidth: 1000)
+            let renderer = SceneKitRenderer(spec: defaultSpec(), stripWidth: 1000)
             guard let scene = sceneKitScene(renderer) else {
                 try expect(false, "renderer produced no scene")
                 return
@@ -77,7 +85,7 @@ public let sceneKitChecks: [Check] = [
     },
     Check("when asked for its view the SceneKit renderer lights the scene with ambient and directional lights") {
         try MainActor.assumeIsolated {
-            let renderer = SceneKitRenderer(spec: RunSpec.parse(["sl"]), stripWidth: 1000)
+            let renderer = SceneKitRenderer(spec: defaultSpec(), stripWidth: 1000)
             guard let scene = sceneKitScene(renderer) else {
                 try expect(false, "renderer produced no scene")
                 return
@@ -89,7 +97,7 @@ public let sceneKitChecks: [Check] = [
     },
     Check("when asked for its view the SceneKit renderer holds the procedural locomotive node") {
         try MainActor.assumeIsolated {
-            let renderer = SceneKitRenderer(spec: RunSpec.parse(["sl"]), stripWidth: 1000)
+            let renderer = SceneKitRenderer(spec: defaultSpec(), stripWidth: 1000)
             guard let scene = sceneKitScene(renderer) else {
                 try expect(false, "renderer produced no scene")
                 return
@@ -101,7 +109,7 @@ public let sceneKitChecks: [Check] = [
     },
     Check("when stepped the SceneKit renderer moves the train right-to-left and reports finished") {
         try MainActor.assumeIsolated {
-            let renderer = SceneKitRenderer(spec: RunSpec.parse(["sl"]), stripWidth: 1000)
+            let renderer = SceneKitRenderer(spec: defaultSpec(), stripWidth: 1000)
             guard let scene = sceneKitScene(renderer),
                   let loco = scene.rootNode.childNode(
                     withName: "procedural-locomotive", recursively: true) else {
@@ -118,10 +126,10 @@ public let sceneKitChecks: [Check] = [
     },
     Check("when asked for a snapshot the SceneKit renderer renders the lit locomotive over transparency") {
         try MainActor.assumeIsolated {
-            let renderer = SceneKitRenderer(spec: RunSpec.parse(["sl"]), stripWidth: 1000)
+            let renderer = SceneKitRenderer(spec: defaultSpec(), stripWidth: 1000)
             guard let view = renderer.makeView(
                 in: NSRect(x: 0, y: 0, width: 1000, height: 180),
-                spec: RunSpec.parse(["sl"])) as? SCNView else {
+                spec: defaultSpec()) as? SCNView else {
                 try expect(false, "view is not an SCNView")
                 return
             }

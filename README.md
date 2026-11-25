@@ -19,7 +19,24 @@ brew install generald/tap/sl3d   # installs a binary still named `sl`
 # or from source — needs only Command Line Tools, no Xcode
 git clone https://github.com/GeneralD/sl && cd sl
 make install                      # installs to /opt/homebrew (PREFIX=…)
+
+# staged install — verify without touching the system
+make install PREFIX=/usr/local DESTDIR=/tmp/sl-dest
+/tmp/sl-dest/usr/local/bin/sl -v
+man -M /tmp/sl-dest/usr/local/share/man sl
 ```
+
+## Homebrew
+
+`sl3d` ships via the [`GeneralD/tap`](https://github.com/GeneralD/tap) tap:
+
+```sh
+brew install GeneralD/tap/sl3d
+```
+
+The formula installs the `sl` binary and its man page; it declares
+`conflicts_with "sl"` because the core `sl` formula owns that name.
+The installed binary is still `sl` — flags and `man sl` are unchanged.
 
 ## Usage
 

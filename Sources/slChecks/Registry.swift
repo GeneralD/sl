@@ -11,5 +11,9 @@ public enum Registry {
         + sceneKitChecks
         + locomotiveChecks
         + trajectoryChecks
+        + flightChecks
         + allDisplayChecks
+        + discoChecks
+        + hardeningChecks
+        + modelAssetChecks
 }

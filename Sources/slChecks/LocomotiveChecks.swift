@@ -4,6 +4,14 @@ import SLCore
 import SLTestKit
 import TrainScene
 
+/// `RunSpec.parse` returns Result; a bare `["sl"]` always succeeds.
+private func defaultSpec() -> RunSpec {
+    switch RunSpec.parse(["sl"]) {
+    case .success(let spec): return spec
+    case .failure(let error): fatalError("default spec must parse: \(error)")
+    }
+}
+
 /// Every descendant name in the tree, for shape assertions.
 private func allNames(_ node: SCNNode) -> Set<String> {
     var names = Set<String>()
@@ -104,10 +112,10 @@ public let locomotiveChecks: [Check] = [
     Check("when the SceneKit renderer is asked for its view the locomotive wheel tree rides along") {
         try MainActor.assumeIsolated {
             let renderer = SceneKitRenderer(
-                spec: RunSpec.parse(["sl"]), stripWidth: 1000)
+                spec: defaultSpec(), stripWidth: 1000)
             guard let view = renderer.makeView(
                 in: NSRect(x: 0, y: 0, width: 1000, height: 180),
-                spec: RunSpec.parse(["sl"])) as? SCNView,
+                spec: defaultSpec()) as? SCNView,
                   let scene = view.scene else {
                 try expect(false, "renderer produced no scene")
                 return
