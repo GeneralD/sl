@@ -122,7 +122,7 @@ public let modelAssetChecks: [Check] = [
             })
         }
     },
-    Check("when a model is supplied the SceneKit renderer swaps the placeholder for the model node") {
+    Check("when a model is supplied the SceneKit renderer swaps the procedural locomotive for the model node") {
         try MainActor.assumeIsolated {
             let dir = try writeSCNFixture("train.scn")
             defer { try? FileManager.default.removeItem(at: dir) }
@@ -142,7 +142,7 @@ public let modelAssetChecks: [Check] = [
                 return
             }
             try expect(scene.rootNode.childNode(
-                withName: "placeholder-loco", recursively: true) == nil)
+                withName: "procedural-locomotive", recursively: true) == nil)
             renderer.render(at: 0)
             let earlyX = loco.position.x
             renderer.render(at: 1)

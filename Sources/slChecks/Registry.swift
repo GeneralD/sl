@@ -8,10 +8,14 @@ public enum Registry {
         + slVersionChecks
         + manPageChecks
         + audioAssetChecks
+        + audioEngineChecks
         + sceneKitChecks
+        + locomotiveChecks
         + trajectoryChecks
         + flightChecks
         + allDisplayChecks
+        + discoChecks
+        + hardeningChecks
         + modelAssetChecks
         + dockHopChecks
 }
