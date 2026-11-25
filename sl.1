@@ -21,6 +21,7 @@
 .Fl -model Ar file |
 .Fl -all |
 .Fl -freeze Ar seconds |
+.Fl -duration Ar seconds |
 .Fl -stealth
 .Sh DESCRIPTION
 .Nm
@@ -70,6 +71,10 @@ Load a .usdz, .scn or .dae locomotive instead of the built-in one.
 Traverse every connected display.
 .It Fl -freeze Ar seconds
 Render one frozen frame and hold. For screenshots.
+.It Fl -duration Ar seconds
+Cap the run at
+.Ar seconds .
+The default is 10 seconds, never past the train's own crossing time.
 .It Fl -stealth
 Stay invisible: the train is hidden from screenshots and screen
 recording.

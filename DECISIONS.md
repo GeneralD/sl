@@ -74,3 +74,9 @@
   `SCNView` + ortho pixel-space camera + ambient/directional lights +
   placeholder primitive driven by `Trajectory`; `SL_RENDERER=placeholder`
   keeps the skeleton view for A/B debugging
+- [task-12] `--duration` needed a RunSpec field + one parser case (flag
+  table entry only — parser internals untouched); RunLoop caps the run
+  at min(--duration ?? 10s, driver.duration), watchdog = cap + 30s
+- [task-12] SIGINT contract: SIG_IGN unless -e (SIG_DFL → ~130); freeze
+  holds via app.run() until SIGTERM; FrameDriver seam = duration +
+  onFrame(t)->Bool + render(at:) with adapters in main.swift

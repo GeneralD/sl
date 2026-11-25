@@ -4,8 +4,8 @@ import SLCore
 import TrainScene
 
 // sl — a 3D steam locomotive that runs across your desktop.
-// Skeleton wiring: flag surface works headless; the overlay run is what
-// the fleet builds out behind this same shape.
+// main.swift: parse argv, build the overlay windows and the frame
+// driver, then hand the process contract to RunLoop.
 
 let spec: RunSpec
 switch RunSpec.parse(ProcessInfo.processInfo.arguments) {
@@ -27,28 +27,52 @@ if spec.helpRequested {
     exit(0)
 }
 
-// --- Overlay run -------------------------------------------------------
-let app = NSApplication.shared
-app.setActivationPolicy(.accessory)
+// The run's per-frame driver: the single-display renderer, or the
+// multi-display stage under --all (one window per screen).
+@MainActor
+private struct RendererDriver: FrameDriver {
+    let renderer: any Renderer
 
-var freezeMode = false
-MainActor.assumeIsolated {
+    var duration: TimeInterval { renderer.duration }
+
+    var onFrame: (TimeInterval) -> Bool {
+        { t in renderer.step(to: t) }
+    }
+
+    func render(at t: TimeInterval) {
+        renderer.render(at: t)
+    }
+}
+
+@MainActor
+private struct StageDriver: FrameDriver {
+    let stage: MultiScreenTrain
+
+    var duration: TimeInterval { stage.duration }
+
+    var onFrame: (TimeInterval) -> Bool {
+        { t in
+            stage.update(t: t)
+            return !stage.finished
+        }
+    }
+
+    func render(at t: TimeInterval) {
+        stage.update(t: t)
+    }
+}
+
+let code = MainActor.assumeIsolated { () -> Int32 in
     let screens = OverlayGeometry.runScreens(all: spec.allDisplays)
     guard let lane = OverlayGeometry.lane(
         on: screens, height: OverlayGeometry.laneHeight) else {
         FileHandle.standardError.write(Data("sl: no display attached\n".utf8))
-        exit(1)
+        return ExitReason.noDisplay.exitCode
     }
-
-
-    // The run's per-frame driver: the single-display renderer, or the
-    // multi-display stage under --all (one window per screen).
-    let duration: TimeInterval
-    let step: @MainActor (TimeInterval) -> Bool
-    let freeze: @MainActor (TimeInterval) -> Void
 
     if spec.allDisplays {
         let stage = MultiScreenTrain(lane: lane)
+        var windows: [OverlayWindow] = []
         for screen in screens {
             let strip = OverlayGeometry.bottomStrip(
                 on: screen, height: OverlayGeometry.laneHeight)
@@ -62,46 +86,19 @@ MainActor.assumeIsolated {
             window.contentView = content
             window.orderFrontRegardless()
             stage.attach(screenFrame: screen.frame, node: node)
+            windows.append(window)
         }
-        duration = stage.duration
-        step = { t in
-            stage.update(t: t)
-            return !stage.finished
-        }
-        freeze = { stage.update(t: $0) }
-    } else {
-        let renderer = RendererFactory.make(spec: spec, stripWidth: lane.width)
-        let window = OverlayWindow(frame: lane)
-        window.contentView = renderer.makeView(
-            in: NSRect(origin: .zero, size: lane.size), spec: spec)
-        window.orderFrontRegardless()
-        duration = renderer.duration
-        step = { renderer.step(to: $0) }
-        freeze = { renderer.render(at: $0) }
+        return RunLoop.run(
+            spec: spec, overlay: windows[0], driver: StageDriver(stage: stage))
     }
 
-    if let freezeAt = spec.freeze {
-
-        freezeMode = true
-        freeze(freezeAt)
-    } else {
-        let start = Date()
-        let hardStop = start.addingTimeInterval(duration + 30)
-        Timer.scheduledTimer(withTimeInterval: 1.0 / 120, repeats: true) { timer in
-            let alive = MainActor.assumeIsolated {
-                let t = Date().timeIntervalSince(start)
-                return step(t) && Date() <= hardStop
-            }
-            if !alive {
-                timer.invalidate()
-                exit(0)
-            }
-        }
-    }
+    let renderer = RendererFactory.make(spec: spec, stripWidth: lane.width)
+    let window = OverlayWindow(frame: lane)
+    window.contentView = renderer.makeView(
+        in: NSRect(origin: .zero, size: lane.size), spec: spec)
+    window.orderFrontRegardless()
+    return RunLoop.run(
+        spec: spec, overlay: window, driver: RendererDriver(renderer: renderer))
 }
 
-if freezeMode {
-    RunLoop.main.run() // held for scripts/shot; SIGTERM exits
-} else {
-    app.run()
-}
+exit(code)
