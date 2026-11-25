@@ -62,7 +62,7 @@ public let modelConsistChecks: [Check] = [
         try MainActor.assumeIsolated {
             let cars = ModelConsist.load(carCount: 3)
             try expectEqual(cars?.count, 3)
-            let locoH = ProceduralLocomotive.size.height
+            let locoH = ModelAsset.locomotiveDesignHeight
             // tender.usdz is 3.5m vs loco 4.2m; coach 4.3m — heights
             // must land near those ratios, not all equal.
             let tenderRatio = (cars?[0].size.height ?? 0) / locoH
@@ -83,7 +83,7 @@ public let modelConsistChecks: [Check] = [
                 at: modelAssetURL(named: "loco.usdz")!.path)
             let coach = try ModelAsset.sourceSize(
                 at: modelAssetURL(named: "coach.usdz")!.path)
-            let locoH = ProceduralLocomotive.size.height
+            let locoH = ModelAsset.locomotiveDesignHeight
             let locoDesignW = locoH * loco.width / loco.height
             let maxLen = locoDesignW * ModelConsist.maxCarLengthFactor
             // Uncapped the express coach is ~2 loco lengths — the cap
@@ -114,13 +114,13 @@ public let modelConsistChecks: [Check] = [
             // First car's center sits half a width plus one
             // couplingGap past the chain origin (the loco's rear).
             if cars.count == 3 {
-                try expect(abs(xs[0] - (Car.couplingGap
+                try expect(abs(xs[0] - (ModelConsist.couplingGap
                                        + cars[0].size.width / 2)) < 0.5,
                            "first car pitch off: x=\(xs[0])")
                 // Consecutive pitch = rear half + gap + front half.
                 let pitch = xs[1] - xs[0]
                 let want = (cars[0].size.width + cars[1].size.width) / 2
-                    + Car.couplingGap
+                    + ModelConsist.couplingGap
                 try expect(abs(pitch - want) < 0.5,
                            "pitch \(pitch) vs expected \(want)")
             }
@@ -143,12 +143,12 @@ public let modelConsistChecks: [Check] = [
             let cars = ModelConsist.load(carCount: 3) ?? []
             let widthSum = cars.reduce(0) { $0 + $1.size.width }
             try expect(ModelConsist.chainLength(cars: cars)
-                       == widthSum + 3 * Car.couplingGap)
+                       == widthSum + 3 * ModelConsist.couplingGap)
             try expect(ModelConsist.chainLength(cars: []).isZero)
             try expect(ModelConsist.chain(cars: []).childNodes.isEmpty)
         }
     },
-    Check("when the consist assets cannot be resolved load returns nil for a procedural fallback") {
+    Check("when the consist assets cannot be resolved load returns nil") {
         try MainActor.assumeIsolated {
             let cars = ModelConsist.load(carCount: 3,
                                          resolve: { _ in nil })
@@ -256,12 +256,13 @@ public let modelConsistChecks: [Check] = [
                        "tender is not nearest the loco")
         }
     },
-    Check("when --model is absent the cars stay procedural") {
+    Check("when no --model is given the default run chains the same bundled cars") {
         try MainActor.assumeIsolated {
-            let names = chain(in: renderedScene(for: ["sl", "-3"]))?
-                .childNodes.map { $0.name ?? "" } ?? []
-            try expect(names == ["car-1", "car-2", "car-3"],
-                       "expected procedural cars, got \(names)")
+            let chain = chain(in: renderedScene(for: ["sl", "-3"]))
+            let names = chain?.childNodes.map { $0.name ?? "" } ?? []
+            try expect(names == ["model-tender", "model-coach-1",
+                                 "model-coach-2"],
+                       "expected bundled cars, got \(names)")
         }
     },
     Check("when --model pulls more cars the rear of the consist reaches further right") {
@@ -283,8 +284,8 @@ public let modelConsistChecks: [Check] = [
     },
     Check("when a --model consist exits the ghost steam emitter still drops") {
         try MainActor.assumeIsolated {
-            // A --model loco has no "smoke" child node, so the emitter
-            // falls back to the train's world position.
+            // The model loco's synthesized "smoke" anchor gives the
+            // emitter a chimney origin; either way it must drop.
             let runSpec = spec(["sl", "--model", "loco", "-1"])
             let renderer = SceneKitRenderer(spec: runSpec, stripWidth: 1000)
             let scene = (renderer.makeView(

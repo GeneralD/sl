@@ -27,11 +27,17 @@ protocol (`Sources/TrainScene/Renderer.swift`), adopting the verified
 - Traversal: `SCNAction.sequence([.moveTo(...), .run { exit }])` with
   `.linear` timing — the `.run` block posts the finish signal.
 - `-F` flight maps to the original `sl.c`'s diagonal climb (`y = x/7`).
-- Wheels/rods: `.repeatForever` rotation on wheel nodes; smoke is a
-  SceneKit particle system.
-- Model: procedural primitives default; `--model` loads
-  `.usdz`/`.scn`/`.dae` via `SCNScene(url:)` (never bare `MDLAsset`
-  without `loadTextures()` — renders white).
+- Wheels/rods: the bundled USDZ carries its own wheel/rod geometry;
+  there is no wheel-spin contract — `WheelworkAnimator` was retired
+  with the procedural loco (issue #78). Smoke is a SceneKit particle
+  system.
+- Model: the bundled `share/sl/models/loco.usdz` is the default
+  train; `--model` loads `.usdz`/`.scn`/`.dae` via
+  `SCNScene(url:)` (never bare `MDLAsset` without `loadTextures()` —
+  renders white). The loaded scene is normalized to
+  `ModelAsset.locomotiveDesignHeight` with a centered pivot; effect
+  anchors (`chimney`/`headlight`) are synthesized from the bounding
+  box since USDZ node names are not ours.
 
 ## Consequences
 

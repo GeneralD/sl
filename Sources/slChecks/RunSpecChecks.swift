@@ -26,8 +26,8 @@ private func parseFails(_ args: [String]) throws {
 public let runSpecChecks: [Check] = [
     Check("when invoked with no arguments it returns the default spec") {
         let s = try spec(["sl"])
-        try expect(!s.accident && !s.c51 && !s.disco && !s.allowInterrupt)
-        try expect(!s.fly && !s.tgv && !s.little && !s.sound)
+        try expect(!s.accident && !s.disco && !s.allowInterrupt)
+        try expect(!s.fly && !s.little && !s.sound)
         try expectEqual(s.cars, 1)
         try expectEqual(s.speedFactor, 1.0)
         try expect(s.model == nil && !s.allDisplays && s.freeze == nil && !s.stealth)
@@ -36,8 +36,8 @@ public let runSpecChecks: [Check] = [
     Check("when invoked with -a it requests the accident") {
         try expectFlag(["sl", "-a"], \.accident)
     },
-    Check("when invoked with -c it requests the C51") {
-        try expectFlag(["sl", "-c"], \.c51)
+    Check("when invoked with -c it reports a parse error") {
+        try parseFails(["sl", "-c"])
     },
     Check("when invoked with -d it requests disco mode") {
         try expectFlag(["sl", "-d"], \.disco)
@@ -48,8 +48,8 @@ public let runSpecChecks: [Check] = [
     Check("when invoked with -F it requests flight") {
         try expectFlag(["sl", "-F"], \.fly)
     },
-    Check("when invoked with -G it requests the TGV") {
-        try expectFlag(["sl", "-G"], \.tgv)
+    Check("when invoked with -G it reports a parse error") {
+        try parseFails(["sl", "-G"])
     },
     Check("when invoked with -l it requests the little train") {
         try expectFlag(["sl", "-l"], \.little)
@@ -76,7 +76,7 @@ public let runSpecChecks: [Check] = [
     Check("when invoked with a clustered short group it sets every flag") {
         let s = try spec(["sl", "-alF"])
         try expect(s.accident && s.little && s.fly)
-        try expect(!s.c51 && !s.disco)
+        try expect(!s.disco)
     },
     Check("when invoked with -3 it pulls three cars") {
         let s = try spec(["sl", "-3"])
@@ -156,7 +156,7 @@ public let runSpecChecks: [Check] = [
     },
     Check("when asked for the usage it prints the whole flag table") {
         let text = RunSpec.usage()
-        for flag in ["-a", "-c", "-d", "-e", "-F", "-G", "-l", "-s", "-v", "-w",
+        for flag in ["-a", "-d", "-e", "-F", "-l", "-s", "-v", "-w",
                      "-<n>", "--cars", "--all", "--model", "--freeze",
                      "--stealth"] {
             try expect(text.contains(flag), "usage() lacks \(flag)")

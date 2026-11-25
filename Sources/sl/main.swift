@@ -192,24 +192,30 @@ let code = MainActor.assumeIsolated { () -> Int32 in
         return ExitReason.noDisplay.exitCode
     }
 
-    // `--model` preflight: a missing or unloadable asset is a usage
-    // error — stderr + exit 2 before any window opens. The loaded,
-    // locomotive-height-normalized node is handed to the renderer once.
+    // Locomotive preflight: the bundled `loco.usdz` is the default
+    // train and `--model` swaps in a custom asset ('loco' is the
+    // bundled alias). A missing or unloadable asset — locomotive or
+    // the bundled car consist — is a usage error: stderr + exit 2
+    // before any window opens. The loaded, design-height-normalized
+    // node is handed to the renderer once.
+    let modelPath = spec.model ?? "loco"
+    let resolvedModel = modelPath == "loco"
+        ? modelAssetURL(named: "loco.usdz")?.path ?? modelPath
+        : modelPath
     var model: ModelAsset.Loaded?
-    if let path = spec.model {
-        // Bare `loco` resolves to the bundled share/sl/models/loco.usdz;
-        // anything else is a user-supplied path.
-        let resolved = path == "loco"
-            ? modelAssetURL(named: "loco.usdz")?.path ?? path
-            : path
-        do {
-            model = try ModelAsset.loadTrain(
-                at: resolved, targetHeight: ProceduralLocomotive.size.height)
-        } catch {
-            FileHandle.standardError.write(Data(
-                "sl: cannot load model '\(path)': \(error)\n".utf8))
-            exit(2)
-        }
+    do {
+        model = try ModelAsset.loadTrain(
+            at: resolvedModel,
+            targetHeight: ModelAsset.locomotiveDesignHeight)
+    } catch {
+        FileHandle.standardError.write(Data(
+            "sl: cannot load model '\(modelPath)': \(error)\n".utf8))
+        exit(2)
+    }
+    if spec.cars > 0, ModelConsist.load(carCount: spec.cars) == nil {
+        FileHandle.standardError.write(Data(
+            "sl: cannot load bundled cars\n".utf8))
+        exit(2)
     }
 
     // Dock zones the train hops over, in lane-local x — one per

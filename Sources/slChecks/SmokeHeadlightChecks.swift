@@ -31,10 +31,30 @@ private func keyframeValues(_ controller: SCNParticlePropertyController?)
     return values.map(\.doubleValue)
 }
 
+/// A stand-in for the named-node contract `attachLocomotiveEffects`
+/// reads: `chimney`, `headlight` and `cab` children with a material —
+/// the procedural loco that used to provide them is gone (issue #78),
+/// and model runs get theirs from `anchorModelLocomotiveEffects`.
+@MainActor
+private func fakeLoco() -> SCNNode {
+    let loco = SCNNode()
+    loco.name = "fake-loco"
+    for name in ["chimney", "headlight", "cab"] {
+        let node = SCNNode(geometry: SCNBox(
+            width: 4, height: 4, length: 4, chamferRadius: 0))
+        node.name = name
+        let material = SCNMaterial()
+        material.diffuse.contents = NSColor.gray
+        node.geometry?.materials = [material]
+        loco.addChildNode(node)
+    }
+    return loco
+}
+
 public let smokeHeadlightChecks: [Check] = [
     Check("when locomotive effects attach the chimney smoke emitter sits at the rim and emits") {
         try MainActor.assumeIsolated {
-            let loco = ProceduralLocomotive().node
+            let loco = fakeLoco()
             attachLocomotiveEffects(to: loco)
             guard let smoke = find("smoke", in: loco),
                   let chimney = find("chimney", in: loco),
@@ -57,7 +77,7 @@ public let smokeHeadlightChecks: [Check] = [
     },
     Check("when locomotive effects attach smoke fades out over each puff's life") {
         try MainActor.assumeIsolated {
-            let loco = ProceduralLocomotive().node
+            let loco = fakeLoco()
             attachLocomotiveEffects(to: loco)
             guard let system = smokeSystem(in: loco) else {
                 throw CheckFailure(message: "no smoke particle system")
@@ -77,7 +97,7 @@ public let smokeHeadlightChecks: [Check] = [
     },
     Check("when locomotive effects attach the headlight carries a beam cone aimed forward") {
         try MainActor.assumeIsolated {
-            let loco = ProceduralLocomotive().node
+            let loco = fakeLoco()
             attachLocomotiveEffects(to: loco)
             guard let beam = find("headlight-beam", in: loco),
                   let headlight = find("headlight", in: loco),
@@ -96,7 +116,7 @@ public let smokeHeadlightChecks: [Check] = [
     },
     Check("when locomotive effects attach the headlight has a spot light shining forward") {
         try MainActor.assumeIsolated {
-            let loco = ProceduralLocomotive().node
+            let loco = fakeLoco()
             attachLocomotiveEffects(to: loco)
             guard let spot = find("headlight-spot", in: loco),
                   let headlight = find("headlight", in: loco),
@@ -112,7 +132,7 @@ public let smokeHeadlightChecks: [Check] = [
     },
     Check("when locomotive effects attach the lamp and cab gain a slight warm emission") {
         try MainActor.assumeIsolated {
-            let loco = ProceduralLocomotive().node
+            let loco = fakeLoco()
             attachLocomotiveEffects(to: loco)
             for name in ["headlight", "cab"] {
                 guard let node = find(name, in: loco),
@@ -129,7 +149,7 @@ public let smokeHeadlightChecks: [Check] = [
     },
     Check("when the smoke sprite draws it paints a soft puff and bare nodes attach cleanly") {
         try MainActor.assumeIsolated {
-            let loco = ProceduralLocomotive().node
+            let loco = fakeLoco()
             attachLocomotiveEffects(to: loco)
             guard let system = smokeSystem(in: loco),
                   let image = system.particleImage as? NSImage else {
@@ -160,7 +180,7 @@ public let smokeHeadlightChecks: [Check] = [
                 throw CheckFailure(message: "renderer produced no scene")
             }
             let loco = scene.rootNode.childNode(
-                withName: "procedural-locomotive", recursively: true)
+                withName: "model-loco", recursively: true)
             try expect(loco != nil, "no locomotive node in scene")
             try expect(find("smoke", in: loco!) != nil,
                        "smoke missing from rendered loco")

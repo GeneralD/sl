@@ -11,7 +11,7 @@
 .Nd run a steam locomotive across your desktop to punish your typos
 .Sh SYNOPSIS
 .Nm
-.Op Fl acdeFGlw
+.Op Fl adeflw
 .Op Fl Ns Ar n
 .Op Fl s
 .Op Fl v
@@ -39,16 +39,12 @@ Spaces — and never steals keyboard focus.
 .Bl -tag -width indent
 .It Fl a
 An accident seems to happen. You feel pity for people who cry for help.
-.It Fl c
-A C51 locomotive appears instead of the D51.
 .It Fl d
 Disco mode.
 .It Fl e
 Allow interruption by Ctrl+C. Off by default, obviously.
 .It Fl F
 It flies like the Galaxy Express 999.
-.It Fl G
-A French TGV appears.
 .It Fl l
 A little version.
 .It Fl s
@@ -74,7 +70,7 @@ Print usage and exit.
 Print version and exit. Long form of
 .Fl v .
 .It Fl -model Ar file
-Load a .usdz, .scn or .dae locomotive instead of the built-in one.
+Load a .usdz, .scn or .dae locomotive instead of the bundled loco.usdz.
 The special name
 .Ar loco
 selects the bundled realistic locomotive
@@ -85,7 +81,7 @@ When cars are requested
 .Pq Fl Ns Ar n ,
 the bundled tender and coach USDZ models
 .Pq share/sl/models/
-are coupled behind the locomotive instead of the procedural cars.
+are coupled behind the locomotive.
 .It Fl -all
 Traverse every connected display.
 .It Fl -freeze Ar seconds
@@ -106,7 +102,9 @@ recording.
 .Nm
 reads no configuration files and writes nothing.
 .Pp
-The built-in locomotive is compiled into the binary.
+The default locomotive is the bundled
+.Pa share/sl/models/loco.usdz ,
+resolved relative to the installed prefix or the checkout.
 .Fl -model
 reads only the file named on the command line.
 .Sh EXAMPLES

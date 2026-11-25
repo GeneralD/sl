@@ -20,9 +20,12 @@ private func parseFails(_ args: [String]) throws {
     }
 }
 
-/// The procedural loco's rendered height in scene units — its
-/// bounding box covers the whole subtree including the effects
-/// shell, so compare ratios, not absolutes.
+/// The rendered loco CONTENT's world-space height in scene units —
+/// `boundingBox` is local-space and excludes the wrapper's own
+/// scale, so corners are converted through the world transform. The
+/// `car-chain` and effect anchors are skipped: the chain
+/// counter-scales against `locoScale`, so including it would make
+/// the height depend on the car count.
 @MainActor
 private func locoHeight(spec: RunSpec, laneHeight: CGFloat) throws -> CGFloat {
     let renderer = SceneKitRenderer(
@@ -32,12 +35,27 @@ private func locoHeight(spec: RunSpec, laneHeight: CGFloat) throws -> CGFloat {
         spec: spec) as? SCNView,
           let scene = view.scene,
           let loco = scene.rootNode.childNode(
-            withName: "procedural-locomotive", recursively: true)
+            withName: "model-loco", recursively: true)
     else {
         throw CheckFailure(message: "no locomotive in scene")
     }
-    let box = loco.boundingBox
-    return CGFloat(box.max.y - box.min.y)
+    let skip: Set<String> = ["car-chain", "chimney", "headlight",
+                             "screamers"]
+    var lo = CGFloat.greatestFiniteMagnitude
+    var hi = -CGFloat.greatestFiniteMagnitude
+    for child in loco.childNodes where !skip.contains(child.name ?? "") {
+        let box = child.boundingBox
+        let cLo = child.convertPosition(
+            SCNVector3(box.min.x, box.min.y, box.min.z), to: nil)
+        let cHi = child.convertPosition(
+            SCNVector3(box.max.x, box.max.y, box.max.z), to: nil)
+        lo = min(lo, CGFloat(min(cLo.y, cHi.y)))
+        hi = max(hi, CGFloat(max(cLo.y, cHi.y)))
+    }
+    guard lo.isFinite, hi.isFinite else {
+        throw CheckFailure(message: "locomotive has no content bounds")
+    }
+    return hi - lo
 }
 
 public let trainScaleChecks: [Check] = [
