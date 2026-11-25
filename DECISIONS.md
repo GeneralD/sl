@@ -60,3 +60,9 @@
   `SCNRenderer`, left at defaults). Evidence lives in
   `docs/spikes/b-scnview.md` and `docs/shots/spike-b-scenkit.png`;
   dev toggle `SL_RENDERER=scenkit`
+- [task-34] Audio assets vendored at `share/sl/audio/` (not
+  `Sources/sl/Resources/` — keeps Package.swift and SPM resource
+  handling untouched); `make install` ships them to
+  `$(PREFIX)/share/sl/audio/`; `AudioAssets` resolves argv0-relative
+  (executable ancestor walk, then cwd ancestor walk for scratch/worktree
+  builds)
