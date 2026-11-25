@@ -25,9 +25,6 @@ public struct Trajectory: Sendable {
     /// Lane width in points; the train travels from `laneWidth + margin`
     /// past the right edge to `-margin` past the left edge.
     public var laneWidth: Double
-    /// Lane (strip) height in points; read only in `fly` mode, where the
-    /// diagonal is measured against the lane's top edge.
-    public var laneHeight: Double
     public var trainWidth: Double
     public var trainHeight: Double
     /// Off-screen padding on both ends and the bottom inset.
@@ -40,13 +37,11 @@ public struct Trajectory: Sendable {
 
     public init(laneWidth: Double, trainWidth: Double, trainHeight: Double,
                 margin: Double = 8, duration: TimeInterval,
-                laneHeight: Double = 0, fly: Bool = false) {
+                fly: Bool = false) {
         precondition(laneWidth > 0 && trainWidth > 0 && trainHeight > 0)
         precondition(margin >= 0)
         precondition(duration > 0)
-        precondition(!fly || laneHeight > 0)
         self.laneWidth = laneWidth
-        self.laneHeight = laneHeight
         self.trainWidth = trainWidth
         self.trainHeight = trainHeight
         self.margin = margin

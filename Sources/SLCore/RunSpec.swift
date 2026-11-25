@@ -12,6 +12,10 @@ public struct RunSpec: Sendable {
     /// hold the window open until SIGTERM. `nil` = normal timed run.
     public var freezeAt: TimeInterval? = nil
 
+    /// `--all`: one overlay window per display; the train crosses every
+    /// screen in global coordinates. `false` = frontmost screen only.
+    public var allDisplays: Bool = false
+
     /// `-F` flight: the train climbs the upstream `y = x/7` diagonal and
     /// exits toward the upper-left instead of running the lane to its end.
     public var fly: Bool = false
@@ -31,13 +35,16 @@ public struct RunSpec: Sendable {
         if args.contains("-v") || args.contains("--version") { spec.versionRequested = true }
         if args.contains("-h") || args.contains("--help") { spec.helpRequested = true }
         if spec.versionRequested || spec.helpRequested { return spec }
-        // Skeleton: bare `sl`, `-F` and `--freeze` are valid; the rest of
-        // the classic flag surface is feature work (#11).
+        // Skeleton: bare `sl`, `--all`, `-F` and `--freeze` are valid; the
+        // rest of the classic flag surface is feature work (#11).
         var i = 0
         var unknown: [String] = []
         while i < args.count {
             let arg = args[i]
-            if arg == "-F" {
+            if arg == "--all" {
+                spec.allDisplays = true
+                i += 1
+            } else if arg == "-F" {
                 spec.fly = true
                 i += 1
             } else if arg == "--freeze", i + 1 < args.count,

@@ -3,9 +3,10 @@ import SLCore
 import SLTestKit
 import TrainScene
 
+private let laneHeight = 180.0
 private let flight = Trajectory(
     laneWidth: 1000, trainWidth: 200, trainHeight: 80,
-    margin: 10, duration: 4, laneHeight: 180, fly: true
+    margin: 10, duration: 4, fly: true
 )
 
 public let flightChecks: [Check] = [
@@ -31,8 +32,8 @@ public let flightChecks: [Check] = [
         let pose = flight.pose(at: flight.duration)
         try expect(pose.finished)
         try expect(pose.x + 100 <= -10, "end x \(pose.x) not past left edge")
-        try expect(pose.y > flight.laneHeight,
-                   "end y \(pose.y) not above lane top \(flight.laneHeight)")
+        try expect(pose.y > laneHeight,
+                   "end y \(pose.y) not above lane top \(laneHeight)")
     },
     Check("when flying it tilts the heading nose-up by atan(1/7)") {
         let pose = flight.pose(at: flight.duration * 0.5)

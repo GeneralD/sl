@@ -41,6 +41,10 @@
 - [init] Tests = custom `slChecks` executable (see above) + `scripts/shot`
   screenshot lane; names are spec sentences; coverage via
   `swift build --enable-code-coverage` + llvm-cov (both verified in CLT)
+- [fleet] Xcode license accepted mid-run — XCTest/brew unblocked, but
+  slChecks stays the primary lane (working, spec-sentence names, no
+  migration cost); `DEVELOPER_DIR=CLT` remains the canonical toolchain
+  pin so all five squads build identically
 - [init] Bold additions authored by orchestrator: Dock hop + ghost
   steam — both ride the trajectory/particle systems the boring tier
   already builds (notch hop dropped: the lane is a bottom strip, the
@@ -48,4 +52,21 @@
 - [task-13] `TrainPresenter` applies poses to the lane `NSView` today;
   the SceneKit `SCNNode` swap keeps the same `update(t:)` call (no
   SceneKit renderer exists yet — presenter stays view-agnostic)
-- [task-26] -F fly: literal upstream port — `y = (laneWidth - x)/7 + trainHeight/2` in y-up lane points (slope exactly 1/7, nose-up tilt `-atan(1/7)`); the strip window is kept, so the train exits through the strip's top edge in the upper-left region rather than the screen corner
+- [task-26] -F fly: literal upstream port — `y = (laneWidth - x)/7 + trainHeight/2` in y-up lane points (slope exactly 1/7, nose-up tilt `-atan(1/7)`); the strip window is kept, so the train exits through the strip's top edge in the upper-left region rather than the screen corner. Tilt goes through `NSView.boundsRotation`: the backing layer's affine transform is reset by AppKit's layer-geometry sync and never renders
+- [spike-b #3] SceneKit committed: `SCNView` composites a transparent
+  background into the overlay on this stack — clear `backgroundColor`,
+  non-opaque layer, and clear `scene.background.contents` are sufficient;
+  the `wantsHDR` black-pixel trap did not fire (HDR props live on
+  `SCNRenderer`, left at defaults). Evidence lives in
+  `docs/spikes/b-scnview.md` and `docs/shots/spike-b-scenkit.png`;
+  dev toggle `SL_RENDERER=scenkit`
+- [task-34] Audio assets vendored at `share/sl/audio/` (not
+  `Sources/sl/Resources/` — keeps Package.swift and SPM resource
+  handling untouched); `make install` ships them to
+  `$(PREFIX)/share/sl/audio/`; `AudioAssets` resolves argv0-relative
+  (executable ancestor walk, then cwd ancestor walk for scratch/worktree
+  builds)
+- [27] `--all` lane: one global rect spanning all screens' x-extent at
+  the lowest bottom edge; each per-screen window shows the train only
+  when its global rect intersects that display's strip — staggered
+  displays may legitimately skip the train (docs/fieldcheck.md)
