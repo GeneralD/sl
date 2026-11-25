@@ -23,7 +23,7 @@ private func discoScene(
         spec: discoSpec()) as? SCNView,
         let scene = view.scene,
         let train = scene.rootNode.childNode(
-            withName: "placeholder-loco", recursively: true) else { return nil }
+            withName: "procedural-locomotive", recursively: true) else { return nil }
     times.forEach { renderer.render(at: $0) }
     return (scene, train)
 }
@@ -64,9 +64,9 @@ public let discoChecks: [Check] = [
                 in: NSRect(x: 0, y: 0, width: 1000, height: 180),
                 spec: discoSpec()) as? SCNView,
                 let scene = view.scene,
-                let loco = scene.rootNode.childNode(
-                    withName: "placeholder-loco", recursively: true),
-                let material = loco.geometry?.materials.first as? SCNMaterial else {
+                let boiler = scene.rootNode.childNode(
+                    withName: "boiler", recursively: true),
+                let material = boiler.geometry?.materials.first as? SCNMaterial else {
                 try expect(false, "disco renderer produced no material")
                 return
             }
@@ -166,7 +166,7 @@ public let discoChecks: [Check] = [
                 spec: spec) as? SCNView,
                 let scene = view.scene,
                 let train = scene.rootNode.childNode(
-                    withName: "placeholder-loco", recursively: true) else {
+                    withName: "procedural-locomotive", recursively: true) else {
                 try expect(false, "plain renderer produced no scene")
                 return
             }
