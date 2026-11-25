@@ -35,6 +35,12 @@ public final class SceneKitRenderer: Renderer {
     private var screamers: ScreamerField?
     /// `-a` panic: the loco rocks slightly while screamers pop.
     private var rocking = false
+    private weak var scene: SCNScene?
+    /// Ghost steam: the emitter dropped at the exit frame, the scene
+    /// it hangs off, and when the consist cleared the lane.
+    private var ghost: SCNNode?
+    private var ghostSystem: SCNParticleSystem?
+    private var exitedAt: TimeInterval?
     /// The train node's resting scale — `--model` wrappers carry a
     /// normalization scale and `-l` multiplies it, so `-d`'s pulse
     /// scales on top of this instead of replacing it.
@@ -48,6 +54,13 @@ public final class SceneKitRenderer: Renderer {
 
     /// `-l` miniature factor (~0.6 of lane height); 1 is full size.
     private static let littleScale: CGFloat = 0.6
+
+    /// Seconds the window holds after the consist clears the lane so
+    /// the ghost-steam trail can dissipate before the finish fade.
+    public static let ghostSteamDuration: TimeInterval = 1.0
+    /// How long the dropped emitter keeps firing after exit — beyond
+    /// this the puffs only decay.
+    private static let ghostEmitWindow: TimeInterval = 0.3
 
     public let duration: TimeInterval
 
@@ -114,6 +127,7 @@ public final class SceneKitRenderer: Renderer {
     public func makeView(in frame: NSRect, spec: RunSpec) -> NSView {
         let scene = SCNScene()
         scene.background.contents = NSColor.clear
+        self.scene = scene
 
         addAmbientLight(to: scene)
         addKeyLight(to: scene)
@@ -215,6 +229,42 @@ public final class SceneKitRenderer: Renderer {
         if let disco {
             applyDisco(t: t, timeline: disco)
         }
+        guard pose.finished else { return }
+        dropGhostSteam(at: t)
+        stopGhostEmission(at: t)
+    }
+
+    /// First finished frame: drop a ghost-steam emitter where the
+    /// train was — the chimney smoke's world position when the
+    /// procedural loco carries one, the train origin otherwise — and
+    /// stamp the exit time the post-exit hold counts down from.
+    private func dropGhostSteam(at t: TimeInterval) {
+        if exitedAt == nil { exitedAt = t }
+        guard ghost == nil, let scene else { return }
+        var origin = train?
+            .childNode(withName: "smoke", recursively: true)?
+            .worldPosition ?? train?.worldPosition ?? SCNVector3Zero
+        // `finished` flips only after the whole consist is past the
+        // left edge — the raw origin is already offscreen and its
+        // puffs would die before drifting into view. Slide the
+        // emitter onto the lane's left end, where the train was last
+        // seen, and lift it into the lane band so the fog hangs over
+        // the lane. (The emitter's 240-wide shell spans x±120.)
+        origin.x = min(max(origin.x, 160), 200)
+        origin.y = min(max(origin.y, 40), 160)
+        let node = ghostSteamEmitter(scale: locoScale)
+        node.position = origin
+        scene.rootNode.addChildNode(node)
+        ghost = node
+        ghostSystem = node.particleSystems?.first
+    }
+
+    /// The emitter fires only through `ghostEmitWindow` after exit;
+    /// past that the puffs decay on their own particleLifeSpan.
+    private func stopGhostEmission(at t: TimeInterval) {
+        guard let exitedAt, let ghostSystem,
+              t - exitedAt > Self.ghostEmitWindow else { return }
+        ghostSystem.birthRate = 0
     }
 
     /// `-d` strobe: hue-cycled body color, lights alternating between
@@ -239,6 +289,15 @@ public final class SceneKitRenderer: Renderer {
     public func step(to t: TimeInterval) -> Bool {
         render(at: t)
         return !trajectory.pose(at: t).finished
+    }
+
+    /// The ghost-steam hold: the run loop keeps the window up this
+    /// long past exit so the trail dissipates before the fade.
+    public var postExitHold: TimeInterval { Self.ghostSteamDuration }
+
+    public func postExitRemaining(at t: TimeInterval) -> TimeInterval {
+        guard let exitedAt else { return 0 }
+        return max(0, Self.ghostSteamDuration - (t - exitedAt))
     }
 
     private func addAmbientLight(to scene: SCNScene) {

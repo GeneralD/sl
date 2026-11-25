@@ -27,4 +27,6 @@ public enum Registry {
         + feelChecks
         + displayPacingChecks
         + shotEvidenceChecks
+        + ghostSteamChecks
+        + ghostSteamSnapshotChecks
 }
