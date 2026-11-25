@@ -64,7 +64,7 @@ public let sceneKitChecks: [Check] = [
             try expect(view.backgroundColor == .clear)
         }
     },
-    Check("when asked for its view the SceneKit renderer configures a pixel-space ortho camera") {
+    Check("when asked for its view the SceneKit renderer configures a 3/4 overhead ortho camera") {
         try MainActor.assumeIsolated {
             let renderer = SceneKitRenderer(spec: defaultSpec(), stripWidth: 1000)
             guard let scene = sceneKitScene(renderer) else {
@@ -78,9 +78,17 @@ public let sceneKitChecks: [Check] = [
             }
             try expect(camera.usesOrthographicProjection)
             try expect(camera.orthographicScale == 90)
+            // Elevated straight toward the viewer (+y, +z), no yaw —
+            // pitched down, level horizon.
             try expect(camNode.position.x == 500)
-            try expect(camNode.position.y == 90)
-            try expect(camNode.position.z == 1500)
+            try expect(camNode.position.y == 990)
+            try expect(camNode.position.z == 1200)
+            try expect(camNode.eulerAngles.x < -0.3,
+                       "camera not pitched down: \(camNode.eulerAngles)")
+            try expect(abs(camNode.eulerAngles.y) < 0.001,
+                       "camera yawed off the lane: \(camNode.eulerAngles)")
+            try expect(abs(camNode.eulerAngles.z) < 0.001,
+                       "camera rolled: \(camNode.eulerAngles)")
         }
     },
     Check("when asked for its view the SceneKit renderer lights the scene with ambient and directional lights") {

@@ -4,8 +4,9 @@ import SceneKit
 import SLCore
 
 /// The committed renderer (spike B, docs/adr/scene.md): a transparent
-/// `SCNView` hosting one ortho camera in pixel space — scene units ==
-/// screen points — lit by ambient + directional lights. The
+/// `SCNView` hosting one ortho camera in a 3/4 overhead pose — scene
+/// units are lane points, foreshortened by the tilt — lit by ambient +
+/// directional lights. The
 /// `ProceduralLocomotive` node tree (or a `--model` asset) is driven by
 /// `Trajectory`.
 ///
@@ -321,9 +322,16 @@ public final class SceneKitRenderer: Renderer {
         keyNode = node
     }
 
-    /// Ortho camera in pixel space: `orthographicScale = height/2` with
-    /// the camera centered on the lane makes one scene unit == one
-    /// screen point (docs/adr/scene.md).
+    /// 3/4 overhead ortho camera: elevated ~37° toward the viewer
+    /// (+z, out of the lane plane) so boiler crowns, domes, the cab
+    /// roof and the wheel/rod depth read on screen. The offset stays
+    /// in the y-z plane — any x yaw would rotate the consist off the
+    /// lane's horizontal and break the right-to-left read. `look(at:)`
+    /// keeps the horizon level. `orthographicScale` stays height/2:
+    /// ortho scale is isotropic, so zooming to compensate the ~0.8
+    /// vertical foreshortening would crop the consist's width instead —
+    /// the train lands a touch smaller than the old side-on framing.
+    /// One world unit is no longer one screen point (docs/adr/scene.md).
     private func addCamera(to scene: SCNScene, frame: NSRect) {
         let camera = SCNCamera()
         camera.usesOrthographicProjection = true
@@ -332,8 +340,12 @@ public final class SceneKitRenderer: Renderer {
         camera.zFar = 5000
         let node = SCNNode()
         node.camera = camera
+        let target = SCNVector3(
+            Float(frame.width / 2), Float(frame.height / 2), 0)
+        // Offset = (0, 0.6, 0.8) × 1500 pt: straight up-and-toward.
         node.position = SCNVector3(
-            frame.width / 2, frame.height / 2, 1500)
+            target.x, target.y + 900, 1200)
+        node.look(at: target)
         scene.rootNode.addChildNode(node)
     }
 
