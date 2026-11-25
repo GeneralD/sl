@@ -109,3 +109,4 @@
   revisit when the deployment target moves. `OverlayDriver`'s fade
   now advances by real frame dt since the panel rate isn't fixed.
 - [task-23] Cars ride inside the train node so pose/heading/wheelwork/disco reach them; a --model wrapper pre-scales local space so the chain counter-scales by 1/nodeScale; consist center shifts +x by chainLength/2 and Trajectory.trainWidth grows by chainLength so the last car exits before finished; car wheels reuse the wheel-* hook so WheelworkAnimator spins them
+- [task-31] `-l` now scales the whole consist at 0.6 — including a `--model` loco (node scale multiplies the wrapper's normalization) and its car chain (`carScale = locoScale` unconditionally); `-d`'s scale pulse composes on a stored `baseScale` instead of clobbering node scale

@@ -23,5 +23,6 @@ public enum Registry {
         + dockHopChecks
         + carChecks
         + liveryChecks
+        + feelChecks
         + displayPacingChecks
 }

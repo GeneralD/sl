@@ -35,6 +35,10 @@ public final class SceneKitRenderer: Renderer {
     private var screamers: ScreamerField?
     /// `-a` panic: the loco rocks slightly while screamers pop.
     private var rocking = false
+    /// The train node's resting scale — `--model` wrappers carry a
+    /// normalization scale and `-l` multiplies it, so `-d`'s pulse
+    /// scales on top of this instead of replacing it.
+    private var baseScale = SCNVector3(1, 1, 1)
 
     /// Two strobe colors the scene lights alternate between under `-d`.
     private static let discoPalette = [
@@ -42,8 +46,8 @@ public final class SceneKitRenderer: Renderer {
         NSColor(calibratedRed: 0.1, green: 0.9, blue: 1.0, alpha: 1),   // cyan
     ]
 
-    /// `-l` miniature factor; 1 is lane height.
-    private static let littleScale: CGFloat = 0.5
+    /// `-l` miniature factor (~0.6 of lane height); 1 is full size.
+    private static let littleScale: CGFloat = 0.6
 
     public let duration: TimeInterval
 
@@ -69,11 +73,19 @@ public final class SceneKitRenderer: Renderer {
         let locoSize = CGSize(
             width: proceduralSize.width * locoScale,
             height: proceduralSize.height * locoScale)
-        let trainSize = loaded?.size ?? locoSize
-        // Cars scale with `-l` on the procedural loco; a `--model`
-        // asset is already lane-height, so its cars stay full size.
+        // `-l` shrinks the whole consist: a `--model` asset is
+        // normalized to lane height, so its node scale and reported
+        // size take the miniature factor too.
+        let trainSize: CGSize
+        if let loaded {
+            trainSize = CGSize(
+                width: loaded.size.width * locoScale,
+                height: loaded.size.height * locoScale)
+        } else {
+            trainSize = locoSize
+        }
         carCount = spec.cars
-        carScale = loaded == nil ? locoScale : 1
+        carScale = locoScale
         let carsLength = Car.chainLength(n: carCount, scale: carScale)
         consistShift = carsLength / 2
         // `-w` shortens the crossing: trajectory speed is the wheelwork's
@@ -110,6 +122,11 @@ public final class SceneKitRenderer: Renderer {
         let train: SCNNode
         if let model {
             train = model.node
+            // `-l` multiplies the wrapper's normalization scale; the
+            // car chain counter-scales off `train.scale` below.
+            train.scale = SCNVector3(
+                train.scale.x * locoScale, train.scale.y * locoScale,
+                train.scale.z * locoScale)
         } else if spec.tgv {
             train = ProceduralTGV(scale: locoScale).node
         } else {
@@ -141,6 +158,7 @@ public final class SceneKitRenderer: Renderer {
         }
         scene.rootNode.addChildNode(train)
         self.train = train
+        baseScale = train.scale
         locoMaterials = Self.materials(of: train)
         // Running gear rides only the procedural hooks — a `--model`
         // scene has no guaranteed `wheel-*`/`rod-*` names to drive.
@@ -212,7 +230,8 @@ public final class SceneKitRenderer: Renderer {
         keyNode?.light?.color = Self.discoPalette[beat]
         ambientNode?.light?.color = Self.discoPalette[1 - beat]
         let s = CGFloat(timeline.scale(at: t))
-        train?.scale = SCNVector3(s, s, s)
+        train?.scale = SCNVector3(
+            baseScale.x * s, baseScale.y * s, baseScale.z * s)
     }
 
     @discardableResult
