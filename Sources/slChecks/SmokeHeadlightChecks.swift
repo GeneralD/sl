@@ -39,8 +39,7 @@ public let smokeHeadlightChecks: [Check] = [
             guard let smoke = find("smoke", in: loco),
                   let chimney = find("chimney", in: loco),
                   smoke.parent === chimney else {
-                try expect(false, "no smoke emitter under the chimney")
-                return
+                throw CheckFailure(message: "no smoke emitter under the chimney")
             }
             try expect(smoke.position.y > 15,
                        "emitter not at chimney rim: y=\(smoke.position.y)")
@@ -61,8 +60,7 @@ public let smokeHeadlightChecks: [Check] = [
             let loco = ProceduralLocomotive().node
             attachLocomotiveEffects(to: loco)
             guard let system = smokeSystem(in: loco) else {
-                try expect(false, "no smoke particle system")
-                return
+                throw CheckFailure(message: "no smoke particle system")
             }
             let opacity = keyframeValues(
                 system.propertyControllers?[.opacity])
@@ -84,8 +82,7 @@ public let smokeHeadlightChecks: [Check] = [
             guard let beam = find("headlight-beam", in: loco),
                   let headlight = find("headlight", in: loco),
                   beam.parent === headlight else {
-                try expect(false, "no beam cone on the headlight")
-                return
+                throw CheckFailure(message: "no beam cone on the headlight")
             }
             try expect(beam.geometry is SCNCone,
                        "beam is not a cone/frustum")
@@ -104,8 +101,7 @@ public let smokeHeadlightChecks: [Check] = [
             guard let spot = find("headlight-spot", in: loco),
                   let headlight = find("headlight", in: loco),
                   spot.parent === headlight else {
-                try expect(false, "no spot light on the headlight")
-                return
+                throw CheckFailure(message: "no spot light on the headlight")
             }
             try expect(spot.light?.type == .spot,
                        "headlight light is not a spot")
@@ -122,8 +118,8 @@ public let smokeHeadlightChecks: [Check] = [
                 guard let node = find(name, in: loco),
                       let material = node.geometry?.materials.first
                 else {
-                    try expect(false, "\(name) missing or material-less")
-                    continue
+                    throw CheckFailure(
+                        message: "\(name) missing or material-less")
                 }
                 let intensity = material.emission.intensity
                 try expect(intensity > 0 && intensity < 2,
@@ -137,8 +133,7 @@ public let smokeHeadlightChecks: [Check] = [
             attachLocomotiveEffects(to: loco)
             guard let system = smokeSystem(in: loco),
                   let image = system.particleImage as? NSImage else {
-                try expect(false, "smoke has no sprite image")
-                return
+                throw CheckFailure(message: "smoke has no sprite image")
             }
             image.draw(
                 in: NSRect(x: 0, y: 0, width: 64, height: 64),
@@ -162,8 +157,7 @@ public let smokeHeadlightChecks: [Check] = [
                 in: NSRect(x: 0, y: 0, width: 1000, height: 180),
                 spec: defaultSpec()) as? SCNView,
                   let scene = view.scene else {
-                try expect(false, "renderer produced no scene")
-                return
+                throw CheckFailure(message: "renderer produced no scene")
             }
             let loco = scene.rootNode.childNode(
                 withName: "procedural-locomotive", recursively: true)
