@@ -19,6 +19,7 @@ public final class SceneKitRenderer: Renderer {
     private let locoScale: CGFloat
     private weak var train: SCNNode?
     private var locoMaterials: [SCNMaterial] = []
+    private var wheelwork: WheelworkAnimator?
     private weak var ambientNode: SCNNode?
     private weak var keyNode: SCNNode?
     private var disco: DiscoTimeline?
@@ -51,11 +52,13 @@ public final class SceneKitRenderer: Renderer {
             width: ProceduralLocomotive.size.width * locoScale,
             height: ProceduralLocomotive.size.height * locoScale)
         let trainSize = loaded?.size ?? locoSize
+        // `-w` shortens the crossing: trajectory speed is the wheelwork's
+        // clock, so the running gear spins faster with it.
         let trajectory = Trajectory(
             laneWidth: Double(stripWidth),
             trainWidth: Double(trainSize.width),
             trainHeight: Double(trainSize.height),
-            duration: 8,
+            duration: 8 / spec.speedFactor,
             fly: spec.fly
         )
         self.trajectory = trajectory
@@ -89,6 +92,9 @@ public final class SceneKitRenderer: Renderer {
         scene.rootNode.addChildNode(train)
         self.train = train
         locoMaterials = Self.materials(of: train)
+        // Running gear rides only the procedural hooks — a `--model`
+        // scene has no guaranteed `wheel-*`/`rod-*` names to drive.
+        wheelwork = model == nil ? WheelworkAnimator(train: train) : nil
 
         let view = SCNView(frame: frame, options: nil)
         view.scene = scene
@@ -115,6 +121,11 @@ public final class SceneKitRenderer: Renderer {
         train.position = SCNVector3(
             CGFloat(pose.x), CGFloat(pose.y) - pivotDrop, 0)
         train.eulerAngles.z = CGFloat(pose.heading)
+        // Distance traveled since enter: the trajectory is linear, so
+        // `startX - pose.x` is `speed * t` — the wheelwork's clock.
+        let startX = trajectory.laneWidth + trajectory.margin
+            + trajectory.trainWidth / 2
+        wheelwork?.update(distance: CGFloat(startX - pose.x))
         if let disco {
             applyDisco(t: t, timeline: disco)
         }
