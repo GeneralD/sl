@@ -12,6 +12,10 @@ public struct RunSpec: Sendable {
     /// hold the window open until SIGTERM. `nil` = normal timed run.
     public var freezeAt: TimeInterval? = nil
 
+    /// `--all`: one overlay window per display; the train crosses every
+    /// screen in global coordinates. `false` = frontmost screen only.
+    public var allDisplays: Bool = false
+
     /// The flag table is the single source of truth for the classic `sl`
     /// surface; each feature extends it, never the parser call sites.
     public static let usage = """
@@ -27,14 +31,16 @@ public struct RunSpec: Sendable {
         if args.contains("-v") || args.contains("--version") { spec.versionRequested = true }
         if args.contains("-h") || args.contains("--help") { spec.helpRequested = true }
         if spec.versionRequested || spec.helpRequested { return spec }
-        if let i = args.firstIndex(of: "--freeze"), i + 1 < args.count,
-           let t = TimeInterval(args[i + 1]) {
+        if args.contains("--all") { spec.allDisplays = true }
+        var rest = args.filter { $0 != "--all" }
+        if let i = rest.firstIndex(of: "--freeze"), i + 1 < rest.count,
+           let t = TimeInterval(rest[i + 1]) {
             spec.freezeAt = t
-            return spec
+            rest.removeSubrange(i...i + 1)
         }
         // Skeleton: bare `sl` is valid (the default run). Unknown flags
         // still error — the full classic flag surface is feature work.
-        if !args.isEmpty { spec.parseError = "unimplemented flag surface" }
+        if !rest.isEmpty { spec.parseError = "unimplemented flag surface" }
         return spec
     }
 }

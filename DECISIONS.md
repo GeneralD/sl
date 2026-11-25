@@ -52,3 +52,7 @@
 - [task-13] `TrainPresenter` applies poses to the lane `NSView` today;
   the SceneKit `SCNNode` swap keeps the same `update(t:)` call (no
   SceneKit renderer exists yet — presenter stays view-agnostic)
+- [27] `--all` lane: one global rect spanning all screens' x-extent at
+  the lowest bottom edge; each per-screen window shows the train only
+  when its global rect intersects that display's strip — staggered
+  displays may legitimately skip the train (docs/fieldcheck.md)
