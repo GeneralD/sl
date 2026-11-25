@@ -76,8 +76,11 @@
   placeholder primitive driven by `Trajectory`; `SL_RENDERER=placeholder`
   keeps the skeleton view for A/B debugging
 - [task-37] `-a` visual half: `ScreamerField` hangs dark `car-window`
-  planes with two figure sprites each off the train node; pop cycles are
+  planes with two figure sprites each off the train node, placed from
+  the train's content `boundingBox` so it survives pivot conventions
+  (procedural loco track-contact vs centered `--model`); pop cycles are
   pure functions of `t` (golden-ratio phases, ~1.15 s period). Loco
   "rock" is a ±0.045 rad roll on `eulerAngles.x`. `RunSpec.wantScreams`
-  is a computed `accident` passthrough — the audio engine (#35) reads
-  it; `-s` still gates actual sound.
+  is a computed `accident` passthrough — the audio engine reads it;
+  `-s` still gates actual sound.
+- [task-28] Dock hop: zone detected via `visibleFrame.minY - frame.minY` > 8 (bottom Dock only — a side Dock insets minX/maxX); the Dock's width is not public API, so the hop zone approximates it as a centered strip capped at 600pt; hop = 40px parabola + 0.15 rad pitch, skipped under `-F` flight; `--all` collects one zone per screen mapped into global lane coords

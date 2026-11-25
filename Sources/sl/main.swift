@@ -96,6 +96,10 @@ MainActor.assumeIsolated {
         }
     }
 
+    // Dock zones the train hops over, in lane-local x — one per
+    // bottom-Docked screen, empty when no Dock is present.
+    let dockZones = OverlayGeometry.dockZones(on: screens, lane: lane)
+
     // The run's per-frame driver: the single-display renderer, or the
     // multi-display stage under --all (one window per screen).
     let duration: TimeInterval
@@ -104,7 +108,8 @@ MainActor.assumeIsolated {
     let ui = RunUI()
 
     if spec.allDisplays {
-        let stage = MultiScreenTrain(lane: lane, fly: spec.fly)
+        let stage = MultiScreenTrain(
+            lane: lane, fly: spec.fly, dock: dockZones)
         for screen in screens {
             let strip = OverlayGeometry.bottomStrip(
                 on: screen, height: OverlayGeometry.laneHeight)
@@ -129,7 +134,8 @@ MainActor.assumeIsolated {
         freeze = { stage.update(t: $0) }
     } else {
         let renderer = RendererFactory.make(
-            spec: spec, stripWidth: lane.width, model: model)
+            spec: spec, stripWidth: lane.width, model: model,
+            dock: dockZones)
         let window = OverlayWindow(frame: lane)
         window.contentView = renderer.makeView(
             in: NSRect(origin: .zero, size: lane.size), spec: spec)
@@ -140,6 +146,12 @@ MainActor.assumeIsolated {
         step = { renderer.step(to: $0) }
         freeze = { renderer.render(at: $0) }
     }
+
+    // `-s` playback: chuff loop, whistles, `-a` screams. Freeze/shot
+    // mode stays silent — it exists for screenshots, not ears.
+    let audio = spec.freeze == nil
+        ? AudioEngine(spec: spec, duration: duration)
+        : nil
 
     if let freezeAt = spec.freeze {
 
@@ -158,7 +170,13 @@ MainActor.assumeIsolated {
                     return f.isFinished ? 1 : 0
                 }
                 let t = Date().timeIntervalSince(start)
-                guard step(t), Date() <= hardStop else {
+                let running = step(t)
+                audio?.update(t: t, finished: !running)
+                // Hold for the exit whistle's tail after the train is
+                // gone — the fade (and exit) waits for it so the note
+                // isn't clipped.
+                let tail = audio?.tailRemaining(t: t) ?? 0
+                guard running || tail > 0, Date() <= hardStop else {
                     ui.fade = Hardening.FadeOut()
                     return 0
                 }

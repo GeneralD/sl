@@ -30,7 +30,7 @@ private func sceneParts(
         spec: spec) as? SCNView,
         let scene = view.scene,
         let train = scene.rootNode.childNode(
-            withName: "placeholder-loco", recursively: true) else { return nil }
+            withName: "procedural-locomotive", recursively: true) else { return nil }
     return (renderer, train)
 }
 

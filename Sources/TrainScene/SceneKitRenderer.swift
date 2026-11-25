@@ -5,21 +5,18 @@ import SLCore
 
 /// The committed renderer (spike B, docs/adr/scene.md): a transparent
 /// `SCNView` hosting one ortho camera in pixel space — scene units ==
-/// screen points — lit by ambient + directional lights. A placeholder
-/// primitive stands in for the locomotive until the real scene graph
-/// lands; it is driven by `Trajectory`, same math as the placeholder
-/// view renderer.
+/// screen points — lit by ambient + directional lights. The
+/// `ProceduralLocomotive` node tree (or a `--model` asset) is driven by
+/// `Trajectory`.
 ///
 /// HDR/exposure adaptation stays OFF: clear pixels read as black to the
 /// exposure solver and darken the whole strip.
 @MainActor
 public final class SceneKitRenderer: Renderer {
-    /// Placeholder silhouette until the locomotive scene graph lands.
-    private static let placeholderSize = CGSize(width: 220, height: 90)
-
     private let trajectory: Trajectory
     private let model: ModelAsset.Loaded?
-    private let trainSize: CGSize
+    private let livery: Livery
+    private let locoScale: CGFloat
     private weak var train: SCNNode?
     private var locoMaterials: [SCNMaterial] = []
     private weak var ambientNode: SCNNode?
@@ -35,31 +32,48 @@ public final class SceneKitRenderer: Renderer {
         NSColor(calibratedRed: 0.1, green: 0.9, blue: 1.0, alpha: 1),   // cyan
     ]
 
+    /// `-l` miniature factor; 1 is lane height.
+    private static let littleScale: CGFloat = 0.5
+
     public let duration: TimeInterval
 
     /// `model` is a `--model` asset already normalized by
-    /// `ModelAsset.loadTrain`; when absent the placeholder primitive
-    /// (soon the procedural loco) stands in. A `spec.model` with no
-    /// `model` argument re-loads defensively — `sl` preflights the load
-    /// so a bad path exits 2 before the window opens.
+    /// `ModelAsset.loadTrain`; when absent the procedural locomotive
+    /// stands in. A `spec.model` with no `model` argument re-loads
+    /// defensively — `sl` preflights the load so a bad path exits 2
+    /// before the window opens.
     public init(spec: RunSpec, stripWidth: CGFloat,
-                model: ModelAsset.Loaded? = nil) {
+                model: ModelAsset.Loaded? = nil,
+                dock: [DockZone] = []) {
         let loaded = model ?? spec.model.flatMap {
             try? ModelAsset.loadTrain(
                 at: $0, targetHeight: OverlayGeometry.laneHeight)
         }
-        let trainSize = loaded?.size ?? Self.placeholderSize
+        livery = Self.livery(for: spec)
+        locoScale = spec.little ? Self.littleScale : 1
+        let locoSize = CGSize(
+            width: ProceduralLocomotive.size.width * locoScale,
+            height: ProceduralLocomotive.size.height * locoScale)
+        let trainSize = loaded?.size ?? locoSize
         let trajectory = Trajectory(
             laneWidth: Double(stripWidth),
             trainWidth: Double(trainSize.width),
             trainHeight: Double(trainSize.height),
             duration: 8,
-            fly: spec.fly
+            fly: spec.fly,
+            dock: dock
         )
         self.trajectory = trajectory
         self.model = loaded
-        self.trainSize = trainSize
         duration = trajectory.duration
+    }
+
+    /// `-c` selects the red C51; `-G` takes the reserved variant slot
+    /// until the TGV gets its own model.
+    private static func livery(for spec: RunSpec) -> Livery {
+        if spec.c51 { return .c51 }
+        if spec.tgv { return .variant }
+        return .d51
     }
 
     public func makeView(in frame: NSRect, spec: RunSpec) -> NSView {
@@ -74,8 +88,8 @@ public final class SceneKitRenderer: Renderer {
         if let model {
             train = model.node
         } else {
-            train = SCNNode(geometry: Self.placeholderGeometry())
-            train.name = "placeholder-loco"
+            train = ProceduralLocomotive(
+                livery: livery, scale: locoScale).node
         }
         scene.rootNode.addChildNode(train)
         self.train = train
@@ -94,7 +108,11 @@ public final class SceneKitRenderer: Renderer {
         disco = spec.disco ? DiscoTimeline() : nil
         rocking = spec.accident
         if spec.accident {
-            let field = ScreamerField(trainSize: trainSize)
+            // boundingBox covers the whole subtree in train-local
+            // space, so windows land correctly for the procedural
+            // loco's track-contact pivot and centered --model pivots.
+            let bounds = train.boundingBox
+            let field = ScreamerField(bounds: bounds.min, hi: bounds.max)
             train.addChildNode(field.root)
             screamers = field
         }
@@ -102,17 +120,15 @@ public final class SceneKitRenderer: Renderer {
     }
 
     /// Right-to-left like the original: `Trajectory` owns the math.
-    /// The slow yaw is placeholder-only — it proves the lighting rig
-    /// until wheels and rods give the loco real motion; a user-supplied
-    /// model keeps its authored orientation.
+    /// The procedural loco's pivot is track contact, so its y sits half
+    /// a train-height below the pose's box center; a `--model` asset is
+    /// normalized to a centered pivot and takes the pose y as-is.
     public func render(at t: TimeInterval) {
         guard let train else { return }
         let pose = trajectory.pose(at: t)
+        let pivotDrop = model == nil ? CGFloat(trajectory.trainHeight) / 2 : 0
         train.position = SCNVector3(
-            CGFloat(pose.x), CGFloat(pose.y), 0)
-        if model == nil {
-            train.eulerAngles.y = CGFloat(t * 0.9)
-        }
+            CGFloat(pose.x), CGFloat(pose.y) - pivotDrop, 0)
         train.eulerAngles.z = CGFloat(pose.heading)
         if rocking {
             screamers?.update(at: t)
@@ -185,18 +201,7 @@ public final class SceneKitRenderer: Renderer {
         scene.rootNode.addChildNode(node)
     }
 
-    private static func placeholderGeometry() -> SCNGeometry {
-        let box = SCNBox(
-            width: placeholderSize.width, height: placeholderSize.height,
-            length: placeholderSize.height, chamferRadius: 10)
-        let material = SCNMaterial()
-        material.diffuse.contents = NSColor(
-            calibratedRed: 0.62, green: 0.25, blue: 0.18, alpha: 1)
-        box.materials = [material]
-        return box
-    }
-
-    /// Every material in the loco's subtree — placeholder box or a
+    /// Every material in the loco's subtree — procedural node tree or a
     /// user-supplied model graph — so `-d` hue-cycles the whole body.
     private static func materials(of node: SCNNode) -> [SCNMaterial] {
         let own = node.geometry?.materials.compactMap {

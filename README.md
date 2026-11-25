@@ -26,6 +26,18 @@ make install PREFIX=/usr/local DESTDIR=/tmp/sl-dest
 man -M /tmp/sl-dest/usr/local/share/man sl
 ```
 
+## Homebrew
+
+`sl3d` ships via the [`GeneralD/tap`](https://github.com/GeneralD/tap) tap:
+
+```sh
+brew install GeneralD/tap/sl3d
+```
+
+The formula installs the `sl` binary and its man page; it declares
+`conflicts_with "sl"` because the core `sl` formula owns that name.
+The installed binary is still `sl` — flags and `man sl` are unchanged.
+
 ## Usage
 
 ```sh

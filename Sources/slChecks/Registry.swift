@@ -8,7 +8,9 @@ public enum Registry {
         + slVersionChecks
         + manPageChecks
         + audioAssetChecks
+        + audioEngineChecks
         + sceneKitChecks
+        + locomotiveChecks
         + trajectoryChecks
         + flightChecks
         + allDisplayChecks
@@ -16,4 +18,5 @@ public enum Registry {
         + hardeningChecks
         + modelAssetChecks
         + screamerChecks
+        + dockHopChecks
 }
