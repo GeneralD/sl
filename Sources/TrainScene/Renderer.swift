@@ -6,7 +6,7 @@ import SLCore
 /// callers nowhere. `sl` and `OverlayKit` never name SceneKit.
 /// Every renderer is UI-bound: the protocol itself is `@MainActor`.
 @MainActor
-public protocol Renderer {
+public protocol Renderer: Sendable {
     /// The view filling the overlay window's lane.
     func makeView(in frame: NSRect, spec: RunSpec) -> NSView
 

@@ -45,3 +45,10 @@
   steam — both ride the trajectory/particle systems the boring tier
   already builds (notch hop dropped: the lane is a bottom strip, the
   notch never intersects it)
+- [spike-b #3] SceneKit committed: `SCNView` composites a transparent
+  background into the overlay on this stack — clear `backgroundColor`,
+  non-opaque layer, and clear `scene.background.contents` are sufficient;
+  the `wantsHDR` black-pixel trap did not fire (HDR props live on
+  `SCNRenderer`, left at defaults). Evidence lives in
+  `docs/spikes/b-scnview.md` and `docs/shots/spike-b-scenkit.png`;
+  dev toggle `SL_RENDERER=scenkit`
