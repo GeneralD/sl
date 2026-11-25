@@ -9,4 +9,5 @@ public enum Registry {
         + audioAssetChecks
         + sceneKitChecks
         + trajectoryChecks
+        + allDisplayChecks
 }

@@ -129,6 +129,39 @@ public let runSpecChecks: [Check] = [
     Check("when invoked with a bare argument it reports a parse error") {
         try parseFails(["sl", "railway"])
     },
+    Check("when invoked with -3a it applies the car count then the flag") {
+        let s = try spec(["sl", "-3a"])
+        try expectEqual(s.cars, 3)
+        try expect(s.accident)
+    },
+    Check("when invoked with --model= and an empty value it reports a parse error") {
+        try parseFails(["sl", "--model="])
+    },
+    Check("when asked for the usage it prints the whole flag table") {
+        let text = RunSpec.usage()
+        for flag in ["-a", "-c", "-d", "-e", "-F", "-G", "-l", "-s", "-v", "-w",
+                     "-<n>", "--all", "--model", "--freeze", "--stealth"] {
+            try expect(text.contains(flag), "usage() lacks \(flag)")
+        }
+    },
+    Check("when a parse fails the error describes the cause") {
+        let cases: [(args: [String], needle: String)] = [
+            (["sl", "-z"], "unknown flag"),
+            (["sl", "railway"], "unexpected argument"),
+            (["sl", "--model"], "requires a value"),
+            (["sl", "--freeze", "soon"], "invalid value"),
+            (["sl", "-0"], "invalid car count"),
+        ]
+        for (args, needle) in cases {
+            guard case .failure(let error) = RunSpec.parse(args) else {
+                try expect(false, "expected parse failure for \(args)")
+                continue
+            }
+            try expect(error.message.contains(needle),
+                       "\(args) error '\(error.message)' lacks '\(needle)'")
+            try expectEqual(error.description, error.message)
+        }
+    },
 ]
 
 public let slVersionChecks: [Check] = [
