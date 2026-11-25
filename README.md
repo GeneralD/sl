@@ -15,7 +15,9 @@ punishes you inside the terminal. This one punishes you **everywhere**.
 ![the train crossing the desktop, four frozen frames](assets/demo.gif)
 
 Real captures, no mockups: `scripts/shot` freezes the run mid-frame and
-grabs the actual screen. More frames in [`docs/shots/`](docs/shots/).
+writes a lane-cropped strip — either a verified screen capture or, with
+`--render`, a deterministic offscreen render. More frames in
+[`docs/shots/`](docs/shots/).
 
 ## Install
 

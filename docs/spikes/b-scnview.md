@@ -15,12 +15,12 @@ default. HDR/exposure adaptation left at defaults (off) per the
 `peterhanily/max_clawdroom` recipe — `wantsHDR`/`wantsExposureAdaptation`
 live on `SCNRenderer`, not `SCNView`, and are not needed.
 
-**Result:** WORKS — verified on this machine, 2026-11-26
-(`docs/shots/spike-b-scenkit.png`, captured by
-`SL_RENDERER=scenkit scripts/shot docs/shots/spike-b-scenkit.png`): the
-orange box renders inside the bottom lane while every surrounding pixel
-of the strip shows live desktop content — no black or opaque rect. The
-premultiplied-alpha trap did not fire on this SDK/toolchain.
+**Result:** WORKS — verified on this machine, 2026-11-26 (captured by
+`SL_RENDERER=scenkit scripts/shot`): the orange box rendered inside the
+bottom lane while every surrounding pixel of the strip showed live
+desktop content — no black or opaque rect. The premultiplied-alpha trap
+did not fire on this SDK/toolchain. (The evidence PNG was later purged
+in #68 — it was a full-desktop capture.)
 
 **Decisions confirmed:**
 
