@@ -128,10 +128,13 @@ public struct ProceduralLocomotive {
     }
 
     /// One wheel: the named node is the animation pivot at axle height;
-    /// its child carries the cylinder pre-rotated so the axle runs
-    /// along z (the rolling direction is a z-rotation of the parent).
+    /// its children carry the cylinder pre-rotated so the axle runs
+    /// along z (the rolling direction is a z-rotation of the parent)
+    /// plus a brass spoke bar — a plain cylinder is rotationally
+    /// symmetric, so without the spoke the spin is invisible.
     private static func wheel(_ name: String, x: CGFloat, radius: CGFloat,
-                              s: CGFloat, material: SCNMaterial) -> SCNNode {
+                              s: CGFloat, material: SCNMaterial,
+                              spoke: SCNMaterial) -> SCNNode {
         let node = SCNNode()
         node.name = name
         node.position = SCNVector3(Float(x * s), Float(radius * s), 0)
@@ -141,17 +144,31 @@ public struct ProceduralLocomotive {
         mesh.eulerAngles.x = .pi / 2 // cylinder y-axis -> z-axis
         mesh.geometry?.materials = [material]
         node.addChildNode(mesh)
+        let bar = SCNNode(geometry: SCNBox(
+            width: radius * 1.8 * s, height: 3 * s, length: 2 * s,
+            chamferRadius: 0))
+        // Named without the `wheel-` prefix so hook scans that match
+        // `wheel-*` pivots don't pick the spoke up as a wheel.
+        bar.name = "spoke-\(name)"
+        bar.geometry?.materials = [spoke]
+        node.addChildNode(bar)
         return node
     }
 
     private static func wheels(_ m: Materials, s: CGFloat) -> [SCNNode] {
         [
-            wheel("wheel-leading", x: -140, radius: 14, s: s, material: m.wheel),
-            wheel("wheel-driver-1", x: -112, radius: 20, s: s, material: m.wheel),
-            wheel("wheel-driver-2", x: -72, radius: 20, s: s, material: m.wheel),
-            wheel("wheel-driver-3", x: -32, radius: 20, s: s, material: m.wheel),
-            wheel("wheel-driver-4", x: 8, radius: 20, s: s, material: m.wheel),
-            wheel("wheel-trailing", x: 52, radius: 16, s: s, material: m.wheel),
+            wheel("wheel-leading", x: -140, radius: 14, s: s,
+                  material: m.wheel, spoke: m.trim),
+            wheel("wheel-driver-1", x: -112, radius: 20, s: s,
+                  material: m.wheel, spoke: m.trim),
+            wheel("wheel-driver-2", x: -72, radius: 20, s: s,
+                  material: m.wheel, spoke: m.trim),
+            wheel("wheel-driver-3", x: -32, radius: 20, s: s,
+                  material: m.wheel, spoke: m.trim),
+            wheel("wheel-driver-4", x: 8, radius: 20, s: s,
+                  material: m.wheel, spoke: m.trim),
+            wheel("wheel-trailing", x: 52, radius: 16, s: s,
+                  material: m.wheel, spoke: m.trim),
         ]
     }
 
