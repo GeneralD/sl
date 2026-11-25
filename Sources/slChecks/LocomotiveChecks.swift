@@ -76,6 +76,39 @@ public let locomotiveChecks: [Check] = [
                        "\(wheel.name ?? "?") mesh axle not on z")
         }
     },
+    Check("when built the locomotive has a tapered boiler plus cab roof chimney cap dome skirts handrails window frames and pipe hints") {
+        let loco = ProceduralLocomotive().node
+        let names = allNames(loco)
+        for part in ["cab-roof", "chimney-cap", "steam-dome-base",
+                     "sand-dome-base", "handrail-1", "handrail-2",
+                     "steam-pipe", "sandbox-pipe", "window-frame-1",
+                     "window-frame-2", "cab-mullion"] {
+            try expect(names.contains(part), "missing \(part)")
+        }
+        // The taper is the cone primitive, not a plain cylinder.
+        try expect(find("boiler", in: loco)?.geometry is SCNCone,
+                   "boiler is not tapered")
+    },
+    Check("when built the locomotive materials carry metalness and roughness tuning") {
+        let loco = ProceduralLocomotive().node
+        func material(_ node: SCNNode?) -> SCNMaterial? {
+            node?.geometry?.materials.first as? SCNMaterial
+        }
+        let boiler = material(find("boiler", in: loco))
+        let wheel = wheelNodes(loco).first.flatMap {
+            $0.childNodes.first?.geometry?.materials.first as? SCNMaterial
+        }
+        func scalar(_ contents: Any?) -> CGFloat {
+            (contents as? NSNumber).map { CGFloat($0.doubleValue) } ?? -1
+        }
+        let boilerMetal = scalar(boiler?.metalness.contents)
+        let wheelMetal = scalar(wheel?.metalness.contents)
+        try expect(scalar(boiler?.metalness.contents) >= 0
+                   && scalar(boiler?.roughness.contents) >= 0,
+                   "boiler lacks PBR scalars")
+        try expect(wheelMetal > boilerMetal,
+                   "wheel metalness \(wheelMetal) not above paint \(boilerMetal)")
+    },
     Check("when built the locomotive has named drive and coupling rods") {
         let names = allNames(ProceduralLocomotive().node)
         try expect(names.contains("rod-drive"))

@@ -1,9 +1,9 @@
 import Foundation
 import SLCore
 
-/// One instant of the train's crossing, in ortho/scene points — the same
-/// space the SceneKit camera exposes (scene units == screen points, see
-/// docs/adr/scene.md). `x`/`y` are the train's center; `heading` is the
+/// One instant of the train's crossing, in lane points — the ortho
+/// scene space the SceneKit camera exposes (foreshortened by the 3/4
+/// tilt, see docs/adr/scene.md). `x`/`y` are the train's center; `heading` is the
 /// rotation applied to the level leftward pose in radians (0 = level,
 /// negative tilts the nose up the fly diagonal); `finished` flips once
 /// the whole train has passed the left edge plus `margin`.
