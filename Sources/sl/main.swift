@@ -38,8 +38,8 @@ MainActor.assumeIsolated {
         exit(1)
     }
 
-    // The run's per-frame driver: the single-display placeholder renderer,
-    // or the multi-display stage under --all (one window per screen).
+    // The run's per-frame driver: the single-display renderer, or the
+    // multi-display stage under --all (one window per screen).
     let duration: TimeInterval
     let step: @MainActor (TimeInterval) -> Bool
     let freeze: @MainActor (TimeInterval) -> Void
@@ -67,11 +67,7 @@ MainActor.assumeIsolated {
         }
         freeze = { stage.update(t: $0) }
     } else {
-        guard !screens.isEmpty else {
-            FileHandle.standardError.write(Data("sl: no display attached\n".utf8))
-            exit(1)
-        }
-        let renderer = PlaceholderRenderer(spec: spec, stripWidth: lane.width)
+        let renderer = RendererFactory.make(spec: spec, stripWidth: lane.width)
         let window = OverlayWindow(frame: lane)
         window.contentView = renderer.makeView(
             in: NSRect(origin: .zero, size: lane.size), spec: spec)
