@@ -1,5 +1,6 @@
 import AppKit
 import OverlayKit
+import SLCore
 
 /// The placeholder train glyph — one styling source for the
 /// single-display renderer and the multi-display stage until the
@@ -35,14 +36,16 @@ public final class MultiScreenTrain {
 
     private var screens: [(frame: NSRect, node: NSView)] = []
 
-    public init(lane: NSRect, duration: TimeInterval = 8, fly: Bool = false) {
+    public init(lane: NSRect, duration: TimeInterval = 8, fly: Bool = false,
+                dock: [DockZone] = []) {
         self.lane = lane
         trajectory = Trajectory(
             laneWidth: Double(lane.width),
             trainWidth: Double(TrainGlyph.size.width),
             trainHeight: Double(TrainGlyph.size.height),
             duration: duration,
-            fly: fly
+            fly: fly,
+            dock: dock
         )
     }
 

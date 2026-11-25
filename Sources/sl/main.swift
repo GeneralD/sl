@@ -4,16 +4,106 @@ import SLCore
 import TrainScene
 
 // sl — a 3D steam locomotive that runs across your desktop.
-// Skeleton wiring: flag surface works headless; the overlay run is what
-// the fleet builds out behind this same shape.
+// main.swift: hardening gates, argv→spec dispatch, overlay windows and
+// the frame driver; RunLoop owns the process contract from there.
 
 /// Run-scoped UI state shared between the setup block and the frame
-/// timer. `@MainActor` makes it `Sendable`, so the `@Sendable` timer
+/// driver. `@MainActor` makes it `Sendable`, so the driver's `onFrame`
 /// closure can capture it safely.
 @MainActor
 private final class RunUI {
     var windows: [OverlayWindow] = []
     var fade: Hardening.FadeOut?
+}
+
+/// The traversal-agnostic driver: wraps a `FrameDriver` base (the
+/// single-display renderer or the --all stage) and owns the finish
+/// sequence — audio tail, then fade-out — reporting "keep running"
+/// through `onFrame` until the fade completes.
+@MainActor
+private final class OverlayDriver: FrameDriver {
+    private let base: any FrameDriver
+    private let audio: AudioEngine?
+    private let ui: RunUI
+    private var fading = false
+    private var lastFrameT: TimeInterval?
+
+    var duration: TimeInterval { base.duration }
+
+    init(base: any FrameDriver, audio: AudioEngine?, ui: RunUI) {
+        self.base = base
+        self.audio = audio
+        self.ui = ui
+    }
+
+    var onFrame: (TimeInterval) -> Bool {
+        { t in
+            // Real frame delta: the display link fires at the panel's
+            // own rate (60 or 120 Hz), so a fixed step would stretch or
+            // compress the fade.
+            let dt = self.lastFrameT.map { max(t - $0, 0) }
+                ?? FramePacing.fallbackInterval
+            self.lastFrameT = t
+            if self.fading {
+                guard var f = self.ui.fade else { return false }
+                let alpha = f.advance(by: dt)
+                for window in self.ui.windows { window.alphaValue = alpha }
+                self.ui.fade = f
+                return !f.isFinished
+            }
+            let running = self.base.onFrame(t)
+            self.audio?.update(t: t, finished: !running)
+            // Hold for the exit whistle's tail after the train is
+            // gone — the fade (and exit) waits for it so the note
+            // isn't clipped.
+            let tail = self.audio?.tailRemaining(t: t) ?? 0
+            guard running || tail > 0 else {
+                self.ui.fade = Hardening.FadeOut()
+                self.fading = true
+                return true
+            }
+            return true
+        }
+    }
+
+    func render(at t: TimeInterval) {
+        base.render(at: t)
+    }
+}
+
+/// Single-display adapter: the `Renderer` seam as a `FrameDriver`.
+@MainActor
+private struct RendererDriver: FrameDriver {
+    let renderer: any Renderer
+
+    var duration: TimeInterval { renderer.duration }
+
+    var onFrame: (TimeInterval) -> Bool {
+        { t in renderer.step(to: t) }
+    }
+
+    func render(at t: TimeInterval) {
+        renderer.render(at: t)
+    }
+}
+
+/// `--all` adapter: the multi-screen stage as a `FrameDriver`.
+@MainActor
+private struct StageDriver: FrameDriver {
+    let stage: MultiScreenTrain
+
+    var duration: TimeInterval { stage.duration }
+
+    var onFrame: (TimeInterval) -> Bool {
+        { t in
+            stage.update(t: t)
+            return !stage.finished
+        }
+    }
+
+    func render(at t: TimeInterval) {
+        stage.update(t: t)
+    }
 }
 
 let spec: RunSpec
@@ -39,7 +129,10 @@ if spec.helpRequested {
 // --- Hardening gates ----------------------------------------------------
 // Headless first (no slot consumed), then the concurrency slot. The
 // slot is held for the whole run and released on every exit path —
-// normal exit via atexit, SIGTERM/SIGINT via the signal handler.
+// normal exit via atexit, SIGTERM/SIGINT via the signal handler. The
+// SIGINT handler doubles as the `-e` contract: RunLoop ignores SIGINT
+// unless `-e` was passed, in which case this handler releases the slot
+// and exits ~130.
 if let reason = Hardening.liveHeadlessRefusal() {
     FileHandle.standardError.write(Data("sl: \(reason)\n".utf8))
     exit(1)
@@ -69,16 +162,12 @@ case .failure(let refusal):
 }
 
 // --- Overlay run -------------------------------------------------------
-let app = NSApplication.shared
-app.setActivationPolicy(.accessory)
-
-var freezeMode = false
-MainActor.assumeIsolated {
+let code = MainActor.assumeIsolated { () -> Int32 in
     let screens = OverlayGeometry.runScreens(all: spec.allDisplays)
     guard let lane = OverlayGeometry.lane(
         on: screens, height: OverlayGeometry.laneHeight) else {
         FileHandle.standardError.write(Data("sl: no display attached\n".utf8))
-        exit(1)
+        return ExitReason.noDisplay.exitCode
     }
 
     // `--model` preflight: a missing or unloadable asset is a usage
@@ -96,15 +185,16 @@ MainActor.assumeIsolated {
         }
     }
 
-    // The run's per-frame driver: the single-display renderer, or the
-    // multi-display stage under --all (one window per screen).
-    let duration: TimeInterval
-    let step: @MainActor (TimeInterval) -> Bool
-    let freeze: @MainActor (TimeInterval) -> Void
+    // Dock zones the train hops over, in lane-local x — one per
+    // bottom-Docked screen, empty when no Dock is present.
+    let dockZones = OverlayGeometry.dockZones(on: screens, lane: lane)
+
     let ui = RunUI()
+    let base: any FrameDriver
 
     if spec.allDisplays {
-        let stage = MultiScreenTrain(lane: lane, fly: spec.fly)
+        let stage = MultiScreenTrain(
+            lane: lane, fly: spec.fly, dock: dockZones)
         for screen in screens {
             let strip = OverlayGeometry.bottomStrip(
                 on: screen, height: OverlayGeometry.laneHeight)
@@ -121,61 +211,28 @@ MainActor.assumeIsolated {
             ui.windows.append(window)
             stage.attach(screenFrame: screen.frame, node: node)
         }
-        duration = stage.duration
-        step = { t in
-            stage.update(t: t)
-            return !stage.finished
-        }
-        freeze = { stage.update(t: $0) }
+        base = StageDriver(stage: stage)
     } else {
         let renderer = RendererFactory.make(
-            spec: spec, stripWidth: lane.width, model: model)
+            spec: spec, stripWidth: lane.width, model: model,
+            dock: dockZones)
         let window = OverlayWindow(frame: lane)
         window.contentView = renderer.makeView(
             in: NSRect(origin: .zero, size: lane.size), spec: spec)
         window.orderFrontRegardless()
         window.setStealth(spec.stealth)
         ui.windows.append(window)
-        duration = renderer.duration
-        step = { renderer.step(to: $0) }
-        freeze = { renderer.render(at: $0) }
+        base = RendererDriver(renderer: renderer)
     }
 
-    if let freezeAt = spec.freeze {
+    // `-s` playback: chuff loop, whistles, `-a` screams. Freeze/shot
+    // mode stays silent — it exists for screenshots, not ears.
+    let audio = spec.freeze == nil
+        ? AudioEngine(spec: spec, duration: base.duration)
+        : nil
+    let driver = OverlayDriver(base: base, audio: audio, ui: ui)
 
-        freezeMode = true
-        freeze(freezeAt)
-    } else {
-        let start = Date()
-        let hardStop = start.addingTimeInterval(duration + 30)
-        Timer.scheduledTimer(withTimeInterval: 1.0 / 120, repeats: true) { timer in
-            // 1 = fade finished, close and exit; 0 = keep ticking.
-            let done = MainActor.assumeIsolated { () -> Int in
-                if var f = ui.fade {
-                    let alpha = f.advance(by: 1.0 / 120)
-                    for window in ui.windows { window.alphaValue = alpha }
-                    ui.fade = f
-                    return f.isFinished ? 1 : 0
-                }
-                let t = Date().timeIntervalSince(start)
-                guard step(t), Date() <= hardStop else {
-                    ui.fade = Hardening.FadeOut()
-                    return 0
-                }
-                return 0
-            }
-            guard done == 1 else { return }
-            timer.invalidate()
-            MainActor.assumeIsolated {
-                for window in ui.windows { window.close() }
-            }
-            exit(0)
-        }
-    }
+    return RunLoop.run(spec: spec, overlay: ui.windows[0], driver: driver)
 }
 
-if freezeMode {
-    RunLoop.main.run() // held for scripts/shot; SIGTERM exits
-} else {
-    app.run()
-}
+exit(code)

@@ -1,10 +1,11 @@
 import AppKit
 import SceneKit
 
-/// The paint scheme slot behind `-c`/`-G`: `d51` is the default JNR
-/// black, `c51` the `-c` red variant, `variant` the reserved slot for
-/// future liveries (TGV, disco, …). Colors are diffuse-only — the
-/// lighting rig in `SceneKitRenderer` does the rest.
+/// The paint scheme slot behind `-c`: `d51` is the default JNR
+/// black, `c51` the `-c` red-edged variant, `variant` the reserved
+/// slot for future liveries (disco, …). `-G` does not use this enum —
+/// the TGV gets its own node builder (`ProceduralTGV`). Colors are
+/// diffuse-only — the lighting rig in `SceneKitRenderer` does the rest.
 public enum Livery: String, Sendable, CaseIterable {
     case d51
     case c51
@@ -29,7 +30,8 @@ public struct ProceduralLocomotive {
     public let node: SCNNode
 
     /// - Parameters:
-    ///   - livery: paint scheme (`-c` selects `.c51`).
+    ///   - livery: paint scheme (`-c` selects `.c51`; `-G` never
+    ///     reaches this builder — see `ProceduralTGV`).
     ///   - scale: `-l` miniature factor; 1 is lane height.
     public init(livery: Livery = .d51, scale: CGFloat = 1) {
         precondition(scale > 0)
@@ -128,10 +130,13 @@ public struct ProceduralLocomotive {
     }
 
     /// One wheel: the named node is the animation pivot at axle height;
-    /// its child carries the cylinder pre-rotated so the axle runs
-    /// along z (the rolling direction is a z-rotation of the parent).
+    /// its children carry the cylinder pre-rotated so the axle runs
+    /// along z (the rolling direction is a z-rotation of the parent)
+    /// plus a brass spoke bar — a plain cylinder is rotationally
+    /// symmetric, so without the spoke the spin is invisible.
     private static func wheel(_ name: String, x: CGFloat, radius: CGFloat,
-                              s: CGFloat, material: SCNMaterial) -> SCNNode {
+                              s: CGFloat, material: SCNMaterial,
+                              spoke: SCNMaterial) -> SCNNode {
         let node = SCNNode()
         node.name = name
         node.position = SCNVector3(Float(x * s), Float(radius * s), 0)
@@ -141,17 +146,31 @@ public struct ProceduralLocomotive {
         mesh.eulerAngles.x = .pi / 2 // cylinder y-axis -> z-axis
         mesh.geometry?.materials = [material]
         node.addChildNode(mesh)
+        let bar = SCNNode(geometry: SCNBox(
+            width: radius * 1.8 * s, height: 3 * s, length: 2 * s,
+            chamferRadius: 0))
+        // Named without the `wheel-` prefix so hook scans that match
+        // `wheel-*` pivots don't pick the spoke up as a wheel.
+        bar.name = "spoke-\(name)"
+        bar.geometry?.materials = [spoke]
+        node.addChildNode(bar)
         return node
     }
 
     private static func wheels(_ m: Materials, s: CGFloat) -> [SCNNode] {
         [
-            wheel("wheel-leading", x: -140, radius: 14, s: s, material: m.wheel),
-            wheel("wheel-driver-1", x: -112, radius: 20, s: s, material: m.wheel),
-            wheel("wheel-driver-2", x: -72, radius: 20, s: s, material: m.wheel),
-            wheel("wheel-driver-3", x: -32, radius: 20, s: s, material: m.wheel),
-            wheel("wheel-driver-4", x: 8, radius: 20, s: s, material: m.wheel),
-            wheel("wheel-trailing", x: 52, radius: 16, s: s, material: m.wheel),
+            wheel("wheel-leading", x: -140, radius: 14, s: s,
+                  material: m.wheel, spoke: m.trim),
+            wheel("wheel-driver-1", x: -112, radius: 20, s: s,
+                  material: m.wheel, spoke: m.trim),
+            wheel("wheel-driver-2", x: -72, radius: 20, s: s,
+                  material: m.wheel, spoke: m.trim),
+            wheel("wheel-driver-3", x: -32, radius: 20, s: s,
+                  material: m.wheel, spoke: m.trim),
+            wheel("wheel-driver-4", x: 8, radius: 20, s: s,
+                  material: m.wheel, spoke: m.trim),
+            wheel("wheel-trailing", x: 52, radius: 16, s: s,
+                  material: m.wheel, spoke: m.trim),
         ]
     }
 
@@ -234,14 +253,20 @@ public struct ProceduralLocomotive {
                 m.lightingModel = .blinn
                 return m
             }
-            // JNR palette: D51 black, C51 vermilion, variant navy.
+            // JNR palette: D51 black, C51 vermilion edged in black
+            // trim, variant navy (reserved slot).
             let bodyRGB: (CGFloat, CGFloat, CGFloat) = switch livery {
             case .d51: (0.11, 0.11, 0.12)
             case .c51: (0.62, 0.13, 0.07)
             case .variant: (0.09, 0.16, 0.36)
             }
             body = color(bodyRGB.0, bodyRGB.1, bodyRGB.2)
-            trim = color(0.55, 0.42, 0.16)   // brass domes/chimney
+            // C51's red is edged by black trim — domes, chimney and
+            // headlight go charcoal instead of brass.
+            let edged = livery == .c51
+            trim = color(edged ? 0.10 : 0.55,
+                         edged ? 0.10 : 0.42,
+                         edged ? 0.11 : 0.16)
             accent = color(0.42, 0.09, 0.07) // cowcatcher red
             dark = color(0.16, 0.16, 0.17)
             wheel = color(0.09, 0.09, 0.10)

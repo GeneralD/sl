@@ -19,9 +19,22 @@ public final class SceneKitRenderer: Renderer {
     private let locoScale: CGFloat
     private weak var train: SCNNode?
     private var locoMaterials: [SCNMaterial] = []
+    private var wheelwork: WheelworkAnimator?
     private weak var ambientNode: SCNNode?
     private weak var keyNode: SCNNode?
     private var disco: DiscoTimeline?
+    /// Consist center offset from the loco pivot: cars all trail +x, so
+    /// the coupled train's midpoint sits half the car chain past the
+    /// loco's own center. `render` subtracts this so `pose.x` keeps
+    /// meaning "center of the whole consist".
+    private var consistShift: CGFloat = 0
+    /// `-<n>` cars and their scale, resolved once in `init` so the
+    /// trajectory width and the node tree agree.
+    private var carCount: Int = 0
+    private var carScale: CGFloat = 1
+    private var screamers: ScreamerField?
+    /// `-a` panic: the loco rocks slightly while screamers pop.
+    private var rocking = false
 
     /// Two strobe colors the scene lights alternate between under `-d`.
     private static let discoPalette = [
@@ -40,35 +53,50 @@ public final class SceneKitRenderer: Renderer {
     /// defensively — `sl` preflights the load so a bad path exits 2
     /// before the window opens.
     public init(spec: RunSpec, stripWidth: CGFloat,
-                model: ModelAsset.Loaded? = nil) {
+                model: ModelAsset.Loaded? = nil,
+                dock: [DockZone] = []) {
         let loaded = model ?? spec.model.flatMap {
             try? ModelAsset.loadTrain(
                 at: $0, targetHeight: OverlayGeometry.laneHeight)
         }
         livery = Self.livery(for: spec)
         locoScale = spec.little ? Self.littleScale : 1
+        // `-G` swaps the whole node builder, not just the paint: the
+        // TGV bullet is longer and lower than the D51 silhouette, so
+        // the trajectory measures whichever one will actually render.
+        let proceduralSize = spec.tgv
+            ? ProceduralTGV.size : ProceduralLocomotive.size
         let locoSize = CGSize(
-            width: ProceduralLocomotive.size.width * locoScale,
-            height: ProceduralLocomotive.size.height * locoScale)
+            width: proceduralSize.width * locoScale,
+            height: proceduralSize.height * locoScale)
         let trainSize = loaded?.size ?? locoSize
+        // Cars scale with `-l` on the procedural loco; a `--model`
+        // asset is already lane-height, so its cars stay full size.
+        carCount = spec.cars
+        carScale = loaded == nil ? locoScale : 1
+        let carsLength = Car.chainLength(n: carCount, scale: carScale)
+        consistShift = carsLength / 2
+        // `-w` shortens the crossing: trajectory speed is the wheelwork's
+        // clock, so the running gear spins faster with it. The consist
+        // width includes the car chain so the last car clears the left
+        // edge before `finished` flips.
         let trajectory = Trajectory(
             laneWidth: Double(stripWidth),
-            trainWidth: Double(trainSize.width),
+            trainWidth: Double(trainSize.width + carsLength),
             trainHeight: Double(trainSize.height),
-            duration: 8,
-            fly: spec.fly
+            duration: 8 / spec.speedFactor,
+            fly: spec.fly,
+            dock: dock
         )
         self.trajectory = trajectory
         self.model = loaded
         duration = trajectory.duration
     }
 
-    /// `-c` selects the red C51; `-G` takes the reserved variant slot
-    /// until the TGV gets its own model.
+    /// `-c` selects the red-edged C51 livery; `-G` swaps in the TGV
+    /// node builder in `makeView`, so it needs no livery slot.
     private static func livery(for spec: RunSpec) -> Livery {
-        if spec.c51 { return .c51 }
-        if spec.tgv { return .variant }
-        return .d51
+        spec.c51 ? .c51 : .d51
     }
 
     public func makeView(in frame: NSRect, spec: RunSpec) -> NSView {
@@ -82,14 +110,42 @@ public final class SceneKitRenderer: Renderer {
         let train: SCNNode
         if let model {
             train = model.node
+        } else if spec.tgv {
+            train = ProceduralTGV(scale: locoScale).node
         } else {
             train = ProceduralLocomotive(
                 livery: livery, scale: locoScale).node
             attachLocomotiveEffects(to: train, scale: locoScale)
         }
+        // `-<n>` coupling: the chain rides inside the train node so it
+        // inherits pose, heading, wheelwork and disco. The chain lives
+        // in the train's local space — a `--model` wrapper pre-scales
+        // that space, so the chain counter-scales to keep lane size.
+        if carCount > 0 {
+            let nodeScale = CGFloat(train.scale.x)
+            let rearX: CGFloat
+            let bottomY: CGFloat
+            if let model {
+                rearX = model.size.width / 2
+                bottomY = -model.size.height / 2
+            } else {
+                rearX = CGFloat(train.boundingBox.max.x)
+                bottomY = 0
+            }
+            let chain = Car.cars(n: carCount)
+            chain.scale = SCNVector3(
+                carScale / nodeScale, carScale / nodeScale,
+                carScale / nodeScale)
+            chain.position = SCNVector3(
+                Float(rearX / nodeScale), Float(bottomY / nodeScale), 0)
+            train.addChildNode(chain)
+        }
         scene.rootNode.addChildNode(train)
         self.train = train
         locoMaterials = Self.materials(of: train)
+        // Running gear rides only the procedural hooks — a `--model`
+        // scene has no guaranteed `wheel-*`/`rod-*` names to drive.
+        wheelwork = model == nil ? WheelworkAnimator(train: train) : nil
 
         let view = SCNView(frame: frame, options: nil)
         view.scene = scene
@@ -102,6 +158,16 @@ public final class SceneKitRenderer: Renderer {
         // changes and render(at:) mutates node transforms every frame.
         view.rendersContinuously = false
         disco = spec.disco ? DiscoTimeline() : nil
+        rocking = spec.accident
+        if spec.accident {
+            // boundingBox covers the whole subtree in train-local
+            // space, so windows land correctly for the procedural
+            // loco's track-contact pivot and centered --model pivots.
+            let bounds = train.boundingBox
+            let field = ScreamerField(bounds: bounds.min, hi: bounds.max)
+            train.addChildNode(field.root)
+            screamers = field
+        }
         return view
     }
 
@@ -114,8 +180,20 @@ public final class SceneKitRenderer: Renderer {
         let pose = trajectory.pose(at: t)
         let pivotDrop = model == nil ? CGFloat(trajectory.trainHeight) / 2 : 0
         train.position = SCNVector3(
-            CGFloat(pose.x), CGFloat(pose.y) - pivotDrop, 0)
+            CGFloat(pose.x) - consistShift,
+            CGFloat(pose.y) - pivotDrop, 0)
         train.eulerAngles.z = CGFloat(pose.heading)
+        if rocking {
+            screamers?.update(at: t)
+            // Slight panic roll toward the camera — small enough to
+            // read as distress, not a crash.
+            train.eulerAngles.x = CGFloat(sin(t * 2.6) * 0.045)
+        }
+        // Distance traveled since enter: the trajectory is linear, so
+        // `startX - pose.x` is `speed * t` — the wheelwork's clock.
+        let startX = trajectory.laneWidth + trajectory.margin
+            + trajectory.trainWidth / 2
+        wheelwork?.update(distance: CGFloat(startX - pose.x))
         if let disco {
             applyDisco(t: t, timeline: disco)
         }
