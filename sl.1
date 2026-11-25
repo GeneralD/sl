@@ -66,6 +66,8 @@ Print version and exit. Long form of
 .Fl v .
 .It Fl -model Ar file
 Load a .usdz, .scn or .dae locomotive instead of the built-in one.
+glTF and GLB are not supported. The model is scaled to the lane
+height; a missing or unreadable file exits with status 2.
 .It Fl -all
 Traverse every connected display.
 .It Fl -freeze Ar seconds
