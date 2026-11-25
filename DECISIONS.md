@@ -52,3 +52,20 @@
 - [task-13] `TrainPresenter` applies poses to the lane `NSView` today;
   the SceneKit `SCNNode` swap keeps the same `update(t:)` call (no
   SceneKit renderer exists yet — presenter stays view-agnostic)
+- [spike-b #3] SceneKit committed: `SCNView` composites a transparent
+  background into the overlay on this stack — clear `backgroundColor`,
+  non-opaque layer, and clear `scene.background.contents` are sufficient;
+  the `wantsHDR` black-pixel trap did not fire (HDR props live on
+  `SCNRenderer`, left at defaults). Evidence lives in
+  `docs/spikes/b-scnview.md` and `docs/shots/spike-b-scenkit.png`;
+  dev toggle `SL_RENDERER=scenkit`
+- [task-34] Audio assets vendored at `share/sl/audio/` (not
+  `Sources/sl/Resources/` — keeps Package.swift and SPM resource
+  handling untouched); `make install` ships them to
+  `$(PREFIX)/share/sl/audio/`; `AudioAssets` resolves argv0-relative
+  (executable ancestor walk, then cwd ancestor walk for scratch/worktree
+  builds)
+- [27] `--all` lane: one global rect spanning all screens' x-extent at
+  the lowest bottom edge; each per-screen window shows the train only
+  when its global rect intersects that display's strip — staggered
+  displays may legitimately skip the train (docs/fieldcheck.md)
