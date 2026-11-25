@@ -36,6 +36,10 @@ public struct RunSpec: Sendable {
     /// default (10s, never past the driver's own crossing length).
     public var duration: TimeInterval? = nil
 
+    /// `--scale <f>`: multiplier on the default near-screen-filling
+    /// train size. 1 is the tuned default; values must be positive.
+    public var scale: Double = 1.0
+
     public var stealth: Bool = false
 
     /// `-a` requests the accident: the visual panic (screamer sprites,
@@ -72,7 +76,7 @@ public extension RunSpec {
     /// Flag table matching `sl.1`; `-h` prints this.
     static func usage() -> String {
         """
-        usage: sl [-aceFGlhlsvw] [-<number-of-cars>] [--all] [--model <file>] [--freeze <seconds>] [--duration <seconds>] [--stealth]
+        usage: sl [-aceFGlhlsvw] [-<number-of-cars>] [--all] [--model <file>] [--freeze <seconds>] [--duration <seconds>] [--scale <factor>] [--stealth]
                sl --help | --version
 
         flags:
@@ -92,6 +96,7 @@ public extension RunSpec {
           --model FILE  load a .usdz/.scn/.dae locomotive ('loco' = bundled)
           --freeze SEC  render one frozen frame and hold
           --duration SEC  cap the run at SEC seconds
+          --scale F     train size multiplier (default 1)
           --stealth     hide from screen sharing
           --version     print version
         """
@@ -134,7 +139,7 @@ public extension RunSpec {
                 case "version": spec.versionRequested = true
                 case "all": spec.allDisplays = true
                 case "stealth": spec.stealth = true
-                case "model", "freeze", "duration":
+                case "model", "freeze", "duration", "scale":
                     let value: String
                     if let inline {
                         guard !inline.isEmpty else { return .failure(.missingValue("--\(name)")) }
@@ -147,6 +152,12 @@ public extension RunSpec {
                     }
                     if name == "model" {
                         spec.model = value
+                    } else if name == "scale" {
+                        guard let factor = Double(value),
+                              factor.isFinite, factor > 0 else {
+                            return .failure(.invalidValue("--scale", value))
+                        }
+                        spec.scale = factor
                     } else if name == "duration" {
                         guard let seconds = Double(value),
                               seconds.isFinite, seconds > 0 else {

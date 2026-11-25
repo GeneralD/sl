@@ -29,4 +29,5 @@ public enum Registry {
         + shotEvidenceChecks
         + ghostSteamChecks
         + ghostSteamSnapshotChecks
+        + trainScaleChecks
 }

@@ -46,7 +46,7 @@ private func expectLoadError(
 ) throws {
     do {
         _ = try ModelAsset.loadTrain(
-            at: path, targetHeight: OverlayGeometry.laneHeight)
+            at: path, targetHeight: ProceduralLocomotive.size.height)
         try expect(false, "loadTrain should throw \(expected)")
     } catch let error as ModelAsset.LoadError {
         try expectEqual(error, expected)
@@ -107,13 +107,13 @@ public let modelAssetChecks: [Check] = [
             defer { try? FileManager.default.removeItem(at: dir) }
             let loaded = try ModelAsset.loadTrain(
                 at: dir.appendingPathComponent("fixture.scn").path,
-                targetHeight: OverlayGeometry.laneHeight)
+                targetHeight: ProceduralLocomotive.size.height)
             try expectEqual(loaded.node.name, "model-loco")
-            try expect(loaded.size.height == OverlayGeometry.laneHeight)
+            try expect(loaded.size.height == ProceduralLocomotive.size.height)
             try expect(loaded.size.width > 0)
         }
     },
-    Check("when a model loads loadTrain normalizes height to the lane height") {
+    Check("when a model loads loadTrain normalizes height to the locomotive design height") {
         try MainActor.assumeIsolated {
             // Source box is 100 wide × 50 high; target 200 means ×4.
             let dir = try writeSCNFixture(
@@ -136,7 +136,7 @@ public let modelAssetChecks: [Check] = [
             let path = dir.appendingPathComponent("train.scn").path
             let spec = parsedSpec(["sl", "--model", path])
             let loaded = try ModelAsset.loadTrain(
-                at: path, targetHeight: OverlayGeometry.laneHeight)
+                at: path, targetHeight: ProceduralLocomotive.size.height)
             let renderer = SceneKitRenderer(
                 spec: spec, stripWidth: 1000, model: loaded)
             guard let view = renderer.makeView(

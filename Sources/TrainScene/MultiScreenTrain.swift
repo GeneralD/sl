@@ -36,13 +36,19 @@ public final class MultiScreenTrain {
 
     private var screens: [(frame: NSRect, node: NSView)] = []
 
+    /// `scale` is the `--scale` factor; the glyph also grows with the
+    /// lane ratio so `--all` keeps its lane fraction on tall strips.
     public init(lane: NSRect, duration: TimeInterval = 8, fly: Bool = false,
-                dock: [DockZone] = []) {
+                dock: [DockZone] = [], scale: CGFloat = 1) {
         self.lane = lane
+        let safeScale = scale.isFinite && scale > 0 ? scale : 1
+        let s = lane.height / OverlayGeometry.referenceLaneHeight * safeScale
+        let glyph = CGSize(width: TrainGlyph.size.width * s,
+                           height: TrainGlyph.size.height * s)
         trajectory = Trajectory(
             laneWidth: Double(lane.width),
-            trainWidth: Double(TrainGlyph.size.width),
-            trainHeight: Double(TrainGlyph.size.height),
+            trainWidth: Double(glyph.width),
+            trainHeight: Double(glyph.height),
             duration: duration,
             fly: fly,
             dock: dock

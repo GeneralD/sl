@@ -4,8 +4,20 @@ import SLCore
 /// Screen-lane geometry for the train's path. Pure geometry decisions
 /// live here; the window recipe lives in `OverlayWindow`.
 public enum OverlayGeometry {
-    /// Height of the lane strip on every display.
-    public static let laneHeight: CGFloat = 180
+    /// The lane strip's height as a fraction of screen height — the
+    /// train is meant to fill a large share of the display, so the
+    /// strip (and its click-through window) covers the bottom ~60%.
+    public static let laneFraction: CGFloat = 0.6
+
+    /// The design-lane height the scale-1 scene geometry was drawn
+    /// against; `laneHeight(onScreenHeight:)` grows the strip beyond
+    /// it and the renderer scales the train by the same ratio.
+    public static let referenceLaneHeight: CGFloat = 180
+
+    /// Lane strip height for a display `height` points tall.
+    public static func laneHeight(onScreenHeight height: CGFloat) -> CGFloat {
+        height * laneFraction
+    }
 
     /// The lane a train crosses: a strip along the bottom of `screen`,
     /// spanning the frame's full width.
@@ -93,8 +105,12 @@ public enum OverlayGeometry {
         guard inset > 8 else { return nil }
         let width = min(frame.width, 600)
         let minGX = frame.midX - width / 2
+        // The hop apex was tuned at 40pt on the 180pt design lane;
+        // keep the same lane fraction as the strip grows.
+        let apex = 40 * lane.height / referenceLaneHeight
         return DockZone(
             minX: minGX - lane.minX,
-            maxX: minGX + width - lane.minX)
+            maxX: minGX + width - lane.minX,
+            apex: apex)
     }
 }

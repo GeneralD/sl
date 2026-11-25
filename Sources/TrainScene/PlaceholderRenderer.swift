@@ -1,4 +1,5 @@
 import AppKit
+import OverlayKit
 import SLCore
 
 /// Skeleton renderer: a translucent rectangle driven by `Trajectory` +
@@ -9,15 +10,26 @@ import SLCore
 public final class PlaceholderRenderer: Renderer {
     private let train = TrainGlyph.makeView()
     private let presenter: TrainPresenter
+    /// The glyph's on-screen size — the design glyph scaled by the
+    /// lane ratio and `--scale`, keeping its old lane fraction.
+    private let glyphSize: CGSize
 
     public let duration: TimeInterval
 
     public init(spec: RunSpec, stripWidth: CGFloat,
-                dock: [DockZone] = []) {
+                dock: [DockZone] = [],
+                laneHeight: CGFloat = OverlayGeometry.referenceLaneHeight) {
+        precondition(laneHeight > 0)
+        let userScale = spec.scale.isFinite && spec.scale > 0
+            ? spec.scale : 1
+        let s = laneHeight / OverlayGeometry.referenceLaneHeight
+            * CGFloat(userScale)
+        glyphSize = CGSize(width: TrainGlyph.size.width * s,
+                           height: TrainGlyph.size.height * s)
         let trajectory = Trajectory(
             laneWidth: Double(stripWidth),
-            trainWidth: Double(TrainGlyph.size.width),
-            trainHeight: Double(TrainGlyph.size.height),
+            trainWidth: Double(glyphSize.width),
+            trainHeight: Double(glyphSize.height),
             duration: 8,
             fly: spec.fly,
             dock: dock
@@ -30,7 +42,7 @@ public final class PlaceholderRenderer: Renderer {
         let view = NSView(frame: frame)
         view.wantsLayer = true
         view.layer?.backgroundColor = NSColor.clear.cgColor
-        train.frame = NSRect(origin: .zero, size: TrainGlyph.size)
+        train.frame = NSRect(origin: .zero, size: glyphSize)
         view.addSubview(train)
         return view
     }
