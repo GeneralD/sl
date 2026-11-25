@@ -17,10 +17,13 @@ protocol (`Sources/TrainScene/Renderer.swift`), adopting the verified
 - **HDR trap (spec quirk, verbatim from the exemplar):** do NOT enable
   `wantsHDR` / `wantsExposureAdaptation` — exposure computation treats
   clear pixels as black and turns the whole strip dark.
-- Orthographic camera (`usesOrthographicProjection`,
-  `orthographicScale = height/2`, camera at `(w/2, h/2, 1500)` looking
-  down −z): scene units == screen points, so "drive across the desktop"
-  is a single `SCNAction.move` in pixel space.
+- Orthographic camera in a 3/4 overhead pose (`usesOrthographicProjection`,
+  `orthographicScale = height/2` unchanged): the camera sits ~37° up in
+  the y-z plane — elevated and toward the viewer, no yaw, so the
+  consist stays level on the lane — and looks at lane center, so
+  boiler crowns, domes, the cab roof and wheel/rod depth read while
+  the train still crosses right-to-left. Scene units are lane points,
+  no longer 1:1 screen points.
 - Traversal: `SCNAction.sequence([.moveTo(...), .run { exit }])` with
   `.linear` timing — the `.run` block posts the finish signal.
 - `-F` flight maps to the original `sl.c`'s diagonal climb (`y = x/7`).
