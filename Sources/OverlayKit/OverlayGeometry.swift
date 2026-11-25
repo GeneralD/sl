@@ -59,4 +59,42 @@ public enum OverlayGeometry {
                                   laneHeight: CGFloat) -> Bool {
         train.intersects(laneStrip(onScreenFrame: frame, height: laneHeight))
     }
+
+    /// The Dock zones a run hops over, in lane-local x coordinates —
+    /// one per screen whose bottom edge carries a Dock. A bottom Dock
+    /// lifts `visibleFrame.minY` above `frame.minY`; a side Dock insets
+    /// `minX`/`maxX` instead, so it never qualifies (Dock-on-bottom
+    /// only). The Dock's width isn't public API, so the zone
+    /// approximates it as a centered strip capped at 600pt.
+    public static func dockZones(on screens: [NSScreen],
+                                 lane: NSRect) -> [DockZone] {
+        dockZones(
+            screenFrames: screens.map(\.frame),
+            visibleFrames: screens.map(\.visibleFrame),
+            lane: lane)
+    }
+
+    /// `dockZones(on:lane:)` over plain rects — the pure core slChecks
+    /// exercises without a live `NSScreen`.
+    public static func dockZones(screenFrames: [NSRect],
+                                 visibleFrames: [NSRect],
+                                 lane: NSRect) -> [DockZone] {
+        zip(screenFrames, visibleFrames).compactMap { frame, visible in
+            dockZone(screenFrame: frame, visibleFrame: visible, lane: lane)
+        }
+    }
+
+    /// One screen's Dock zone in lane-local x, or nil when the screen
+    /// has no bottom Dock (or the inset is too small to be one).
+    public static func dockZone(screenFrame frame: NSRect,
+                                visibleFrame visible: NSRect,
+                                lane: NSRect) -> DockZone? {
+        let inset = visible.minY - frame.minY
+        guard inset > 8 else { return nil }
+        let width = min(frame.width, 600)
+        let minGX = frame.midX - width / 2
+        return DockZone(
+            minX: minGX - lane.minX,
+            maxX: minGX + width - lane.minX)
+    }
 }

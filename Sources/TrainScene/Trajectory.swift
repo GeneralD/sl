@@ -1,4 +1,5 @@
 import Foundation
+import SLCore
 
 /// One instant of the train's crossing, in ortho/scene points — the same
 /// space the SceneKit camera exposes (scene units == screen points, see
@@ -21,6 +22,10 @@ public struct Pose: Equatable, Sendable {
 /// upstream `-F` diagonal `y = x/7` (sl.c computes it in y-down cells;
 /// ported here to y-up lane points as center `y = (laneWidth - x)/7 +
 /// trainHeight/2`, slope 1/7, exiting toward the upper-left corner).
+///
+/// `dock` zones add a hop on top of the level lane run: while the train
+/// center crosses a zone its y lifts on a parabola and the heading
+/// pitches nose-up then nose-down. The hop never applies to `fly`.
 public struct Trajectory: Sendable {
     /// Lane width in points; the train travels from `laneWidth + margin`
     /// past the right edge to `-margin` past the left edge.
@@ -34,10 +39,13 @@ public struct Trajectory: Sendable {
     /// `-F` flight: climb the `y = x/7` diagonal instead of holding the
     /// lane's bottom edge.
     public var fly: Bool
+    /// Dock zones the level run hops over, in lane-local x points.
+    /// Empty (or `fly`) means a flat lane run.
+    public var dock: [DockZone]
 
     public init(laneWidth: Double, trainWidth: Double, trainHeight: Double,
                 margin: Double = 8, duration: TimeInterval,
-                fly: Bool = false) {
+                fly: Bool = false, dock: [DockZone] = []) {
         precondition(laneWidth > 0 && trainWidth > 0 && trainHeight > 0)
         precondition(margin >= 0)
         precondition(duration > 0)
@@ -47,6 +55,7 @@ public struct Trajectory: Sendable {
         self.margin = margin
         self.duration = duration
         self.fly = fly
+        self.dock = dock
     }
 
     /// `t` is seconds since train-enter; values outside `[0, duration]`
@@ -58,19 +67,24 @@ public struct Trajectory: Sendable {
         let start = laneWidth + margin + trainWidth / 2
         let end = -(margin + trainWidth / 2)
         let x = start + (end - start) * p
+        let finished = x + trainWidth / 2 <= -margin
         guard fly else {
+            let laneY = trainHeight / 2 + margin
+            guard let zone = dock.first(where: { $0.contains(x) }) else {
+                return Pose(x: x, y: laneY, heading: 0, finished: finished)
+            }
             return Pose(
                 x: x,
-                y: trainHeight / 2 + margin,
-                heading: 0,
-                finished: x + trainWidth / 2 <= -margin
+                y: laneY + zone.lift(atX: x),
+                heading: zone.pitch(atX: x),
+                finished: finished
             )
         }
         return Pose(
             x: x,
             y: (laneWidth - x) / 7 + trainHeight / 2,
             heading: -atan(1.0 / 7.0),
-            finished: x + trainWidth / 2 <= -margin
+            finished: finished
         )
     }
 }
