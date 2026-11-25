@@ -45,3 +45,6 @@
   steam — both ride the trajectory/particle systems the boring tier
   already builds (notch hop dropped: the lane is a bottom strip, the
   notch never intersects it)
+- [task-13] `TrainPresenter` applies poses to the lane `NSView` today;
+  the SceneKit `SCNNode` swap keeps the same `update(t:)` call (no
+  SceneKit renderer exists yet — presenter stays view-agnostic)
