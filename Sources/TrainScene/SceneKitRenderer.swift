@@ -1,4 +1,5 @@
 import AppKit
+import OverlayKit
 import SceneKit
 import SLCore
 
@@ -17,19 +18,32 @@ public final class SceneKitRenderer: Renderer {
     private static let trainSize = CGSize(width: 220, height: 90)
 
     private let trajectory: Trajectory
+    private let model: ModelAsset.Loaded?
     private weak var train: SCNNode?
 
     public let duration: TimeInterval
 
-    public init(spec: RunSpec, stripWidth: CGFloat) {
+    /// `model` is a `--model` asset already normalized by
+    /// `ModelAsset.loadTrain`; when absent the placeholder primitive
+    /// (soon the procedural loco) stands in. A `spec.model` with no
+    /// `model` argument re-loads defensively — `sl` preflights the load
+    /// so a bad path exits 2 before the window opens.
+    public init(spec: RunSpec, stripWidth: CGFloat,
+                model: ModelAsset.Loaded? = nil) {
+        let loaded = model ?? spec.model.flatMap {
+            try? ModelAsset.loadTrain(
+                at: $0, targetHeight: OverlayGeometry.laneHeight)
+        }
+        let trainSize = loaded?.size ?? Self.trainSize
         let trajectory = Trajectory(
             laneWidth: Double(stripWidth),
-            trainWidth: Double(Self.trainSize.width),
-            trainHeight: Double(Self.trainSize.height),
+            trainWidth: Double(trainSize.width),
+            trainHeight: Double(trainSize.height),
             duration: 8,
             fly: spec.fly
         )
         self.trajectory = trajectory
+        self.model = loaded
         duration = trajectory.duration
     }
 
@@ -41,8 +55,13 @@ public final class SceneKitRenderer: Renderer {
         addKeyLight(to: scene)
         addCamera(to: scene, frame: frame)
 
-        let train = SCNNode(geometry: Self.placeholderGeometry())
-        train.name = "placeholder-loco"
+        let train: SCNNode
+        if let model {
+            train = model.node
+        } else {
+            train = SCNNode(geometry: Self.placeholderGeometry())
+            train.name = "placeholder-loco"
+        }
         scene.rootNode.addChildNode(train)
         self.train = train
 
@@ -61,13 +80,16 @@ public final class SceneKitRenderer: Renderer {
 
     /// Right-to-left like the original: `Trajectory` owns the math.
     /// The slow yaw is placeholder-only — it proves the lighting rig
-    /// until wheels and rods give the loco real motion.
+    /// until wheels and rods give the loco real motion; a user-supplied
+    /// model keeps its authored orientation.
     public func render(at t: TimeInterval) {
         guard let train else { return }
         let pose = trajectory.pose(at: t)
         train.position = SCNVector3(
             CGFloat(pose.x), CGFloat(pose.y), 0)
-        train.eulerAngles.y = CGFloat(t * 0.9)
+        if model == nil {
+            train.eulerAngles.y = CGFloat(t * 0.9)
+        }
         train.eulerAngles.z = CGFloat(pose.heading)
     }
 
