@@ -70,3 +70,7 @@
   the lowest bottom edge; each per-screen window shows the train only
   when its global rect intersects that display's strip — staggered
   displays may legitimately skip the train (docs/fieldcheck.md)
+- [task-19] `SceneKitRenderer` is the default renderer — transparent
+  `SCNView` + ortho pixel-space camera + ambient/directional lights +
+  placeholder primitive driven by `Trajectory`; `SL_RENDERER=placeholder`
+  keeps the skeleton view for A/B debugging
