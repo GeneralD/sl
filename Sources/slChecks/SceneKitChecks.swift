@@ -87,7 +87,7 @@ public let sceneKitChecks: [Check] = [
             try expect(types.contains(.directional))
         }
     },
-    Check("when asked for its view the SceneKit renderer holds a placeholder train node") {
+    Check("when asked for its view the SceneKit renderer holds the procedural locomotive node") {
         try MainActor.assumeIsolated {
             let renderer = SceneKitRenderer(spec: RunSpec.parse(["sl"]), stripWidth: 1000)
             guard let scene = sceneKitScene(renderer) else {
@@ -95,8 +95,8 @@ public let sceneKitChecks: [Check] = [
                 return
             }
             let loco = scene.rootNode.childNode(
-                withName: "placeholder-loco", recursively: true)
-            try expect(loco?.geometry != nil)
+                withName: "procedural-locomotive", recursively: true)
+            try expect(loco != nil)
         }
     },
     Check("when stepped the SceneKit renderer moves the train right-to-left and reports finished") {
@@ -104,7 +104,7 @@ public let sceneKitChecks: [Check] = [
             let renderer = SceneKitRenderer(spec: RunSpec.parse(["sl"]), stripWidth: 1000)
             guard let scene = sceneKitScene(renderer),
                   let loco = scene.rootNode.childNode(
-                    withName: "placeholder-loco", recursively: true) else {
+                    withName: "procedural-locomotive", recursively: true) else {
                 try expect(false, "renderer produced no train node")
                 return
             }
@@ -116,7 +116,7 @@ public let sceneKitChecks: [Check] = [
             try expect(!renderer.step(to: renderer.duration + 1))
         }
     },
-    Check("when asked for a snapshot the SceneKit renderer renders the lit placeholder over transparency") {
+    Check("when asked for a snapshot the SceneKit renderer renders the lit locomotive over transparency") {
         try MainActor.assumeIsolated {
             let renderer = SceneKitRenderer(spec: RunSpec.parse(["sl"]), stripWidth: 1000)
             guard let view = renderer.makeView(

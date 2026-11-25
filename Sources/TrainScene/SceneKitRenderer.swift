@@ -4,18 +4,14 @@ import SLCore
 
 /// The committed renderer (spike B, docs/adr/scene.md): a transparent
 /// `SCNView` hosting one ortho camera in pixel space — scene units ==
-/// screen points — lit by ambient + directional lights. A placeholder
-/// primitive stands in for the locomotive until the real scene graph
-/// lands; it is driven by `Trajectory`, same math as the placeholder
-/// view renderer.
+/// screen points — lit by ambient + directional lights. The
+/// `ProceduralLocomotive` node tree is driven by `Trajectory`, same
+/// math as the placeholder view renderer.
 ///
 /// HDR/exposure adaptation stays OFF: clear pixels read as black to the
 /// exposure solver and darken the whole strip.
 @MainActor
 public final class SceneKitRenderer: Renderer {
-    /// Placeholder silhouette until the locomotive scene graph lands.
-    private static let trainSize = CGSize(width: 220, height: 90)
-
     private let trajectory: Trajectory
     private weak var train: SCNNode?
 
@@ -24,8 +20,8 @@ public final class SceneKitRenderer: Renderer {
     public init(spec: RunSpec, stripWidth: CGFloat) {
         let trajectory = Trajectory(
             laneWidth: Double(stripWidth),
-            trainWidth: Double(Self.trainSize.width),
-            trainHeight: Double(Self.trainSize.height),
+            trainWidth: Double(ProceduralLocomotive.size.width),
+            trainHeight: Double(ProceduralLocomotive.size.height),
             duration: 8
         )
         self.trajectory = trajectory
@@ -40,8 +36,7 @@ public final class SceneKitRenderer: Renderer {
         addKeyLight(to: scene)
         addCamera(to: scene, frame: frame)
 
-        let train = SCNNode(geometry: Self.placeholderGeometry())
-        train.name = "placeholder-loco"
+        let train = ProceduralLocomotive().node
         scene.rootNode.addChildNode(train)
         self.train = train
 
@@ -59,14 +54,14 @@ public final class SceneKitRenderer: Renderer {
     }
 
     /// Right-to-left like the original: `Trajectory` owns the math.
-    /// The slow yaw is placeholder-only — it proves the lighting rig
-    /// until wheels and rods give the loco real motion.
+    /// The loco node's pivot is track contact, so its y sits half a
+    /// train-height below the pose's box center.
     public func render(at t: TimeInterval) {
         guard let train else { return }
         let pose = trajectory.pose(at: t)
         train.position = SCNVector3(
-            CGFloat(pose.x), CGFloat(pose.y), 0)
-        train.eulerAngles.y = CGFloat(t * 0.9)
+            CGFloat(pose.x),
+            CGFloat(pose.y) - ProceduralLocomotive.size.height / 2, 0)
         train.eulerAngles.z = CGFloat(pose.heading)
     }
 
@@ -109,16 +104,5 @@ public final class SceneKitRenderer: Renderer {
         node.position = SCNVector3(
             frame.width / 2, frame.height / 2, 1500)
         scene.rootNode.addChildNode(node)
-    }
-
-    private static func placeholderGeometry() -> SCNGeometry {
-        let box = SCNBox(
-            width: trainSize.width, height: trainSize.height,
-            length: trainSize.height, chamferRadius: 10)
-        let material = SCNMaterial()
-        material.diffuse.contents = NSColor(
-            calibratedRed: 0.62, green: 0.25, blue: 0.18, alpha: 1)
-        box.materials = [material]
-        return box
     }
 }

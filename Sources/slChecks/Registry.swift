@@ -9,6 +9,7 @@ public enum Registry {
         + manPageChecks
         + audioAssetChecks
         + sceneKitChecks
+        + locomotiveChecks
         + trajectoryChecks
         + allDisplayChecks
 }
