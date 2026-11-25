@@ -8,10 +8,11 @@ build:
 	swift build -c release
 
 install: build
-	install -d "$(DESTDIR)$(PREFIX)/bin" "$(DESTDIR)$(PREFIX)/share/man/man1" "$(DESTDIR)$(PREFIX)/share/sl/audio"
+	install -d "$(DESTDIR)$(PREFIX)/bin" "$(DESTDIR)$(PREFIX)/share/man/man1" "$(DESTDIR)$(PREFIX)/share/sl/audio" "$(DESTDIR)$(PREFIX)/share/sl/models"
 	install -m 755 .build/release/sl "$(DESTDIR)$(PREFIX)/bin/sl"
 	@if [ -f sl.1 ]; then install -m 644 sl.1 "$(DESTDIR)$(PREFIX)/share/man/man1/sl.1"; fi
 	install -m 644 share/sl/audio/*.wav "$(DESTDIR)$(PREFIX)/share/sl/audio/"
+	install -m 644 share/sl/models/*.usdz "$(DESTDIR)$(PREFIX)/share/sl/models/"
 	@echo "installed: $$(command -v sl || echo $(DESTDIR)$(PREFIX)/bin/sl)"
 
 uninstall:

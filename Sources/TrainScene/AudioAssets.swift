@@ -11,6 +11,27 @@ import Foundation
 /// of the working directory covers SwiftPM scratch builds and
 /// worktrees, where the binary lives under `.hackathon/`.
 public func audioAssetDirectory() -> URL? {
+    vendoredAssetDirectory("share/sl/audio")
+}
+
+/// URL of one vendored asset (`chuff.wav`, `whistle.wav`, `scream.wav`),
+/// or nil when the asset directory cannot be resolved.
+public func audioAssetURL(named name: String) -> URL? {
+    audioAssetDirectory()?.appendingPathComponent(name)
+}
+
+/// `share/sl/models/` — bundled locomotive swaps (`--model loco`).
+public func modelAssetDirectory() -> URL? {
+    vendoredAssetDirectory("share/sl/models")
+}
+
+/// URL of one bundled model (`loco.usdz`), or nil when the model
+/// directory cannot be resolved.
+public func modelAssetURL(named name: String) -> URL? {
+    modelAssetDirectory()?.appendingPathComponent(name)
+}
+
+private func vendoredAssetDirectory(_ subpath: String) -> URL? {
     let exeDir = Bundle.main.executableURL?
         .deletingLastPathComponent()
         .resolvingSymlinksInPath()
@@ -20,14 +41,8 @@ public func audioAssetDirectory() -> URL? {
         + ancestors(of: exeDir)
         + ancestors(of: cwd)
     return candidates.lazy
-        .map { $0.appendingPathComponent("share/sl/audio") }
+        .map { $0.appendingPathComponent(subpath) }
         .first { isDirectory($0) }
-}
-
-/// URL of one vendored asset (`chuff.wav`, `whistle.wav`, `scream.wav`),
-/// or nil when the asset directory cannot be resolved.
-public func audioAssetURL(named name: String) -> URL? {
-    audioAssetDirectory()?.appendingPathComponent(name)
 }
 
 private func ancestors(of start: URL?) -> [URL] {

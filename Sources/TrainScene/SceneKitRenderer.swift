@@ -90,9 +90,14 @@ public final class SceneKitRenderer: Renderer {
         let laneScale = laneHeight / OverlayGeometry.referenceLaneHeight
         let userScale = spec.scale.isFinite && spec.scale > 0
             ? spec.scale : 1
-        let loaded = model ?? spec.model.flatMap {
-            try? ModelAsset.loadTrain(
-                at: $0, targetHeight: ProceduralLocomotive.size.height)
+        let loaded = model ?? spec.model.flatMap { path in
+            // Bare `loco` resolves to the bundled asset like `sl` does.
+            let resolved = path == "loco"
+                ? modelAssetURL(named: "loco.usdz")?.path ?? path
+                : path
+            return try? ModelAsset.loadTrain(
+                at: resolved,
+                targetHeight: ProceduralLocomotive.size.height)
         }
         livery = Self.livery(for: spec)
         locoScale = laneScale

@@ -197,9 +197,14 @@ let code = MainActor.assumeIsolated { () -> Int32 in
     // locomotive-height-normalized node is handed to the renderer once.
     var model: ModelAsset.Loaded?
     if let path = spec.model {
+        // Bare `loco` resolves to the bundled share/sl/models/loco.usdz;
+        // anything else is a user-supplied path.
+        let resolved = path == "loco"
+            ? modelAssetURL(named: "loco.usdz")?.path ?? path
+            : path
         do {
             model = try ModelAsset.loadTrain(
-                at: path, targetHeight: ProceduralLocomotive.size.height)
+                at: resolved, targetHeight: ProceduralLocomotive.size.height)
         } catch {
             FileHandle.standardError.write(Data(
                 "sl: cannot load model '\(path)': \(error)\n".utf8))

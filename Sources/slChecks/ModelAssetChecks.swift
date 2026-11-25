@@ -63,6 +63,13 @@ private func parsedSpec(_ args: [String]) -> RunSpec {
 }
 
 public let modelAssetChecks: [Check] = [
+    Check("when the bundled model is requested it resolves to an existing usdz") {
+        guard let url = modelAssetURL(named: "loco.usdz") else {
+            throw CheckFailure(message: "model asset directory unresolved")
+        }
+        try expect(FileManager.default.fileExists(atPath: url.path))
+        try expect(url.pathExtension == "usdz")
+    },
     Check("when the model path does not exist loadTrain throws file not found") {
         try MainActor.assumeIsolated {
             try expectLoadError(

@@ -93,7 +93,7 @@ public extension RunSpec {
           -w            windy: moves faster
           -<n>          pull n trailing cars (1-10)
           --all         traverse every connected display
-          --model FILE  load a .usdz/.scn/.dae locomotive
+          --model FILE  load a .usdz/.scn/.dae locomotive ('loco' = bundled)
           --freeze SEC  render one frozen frame and hold
           --duration SEC  cap the run at SEC seconds
           --scale F     train size multiplier (default 1)
