@@ -1,0 +1,46 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: verify tag matches VERSION
+        run: |
+          ver="${GITHUB_REF_NAME#v}"
+          [ "$ver" = "$(cat VERSION)" ] || {
+            echo "tag $GITHUB_REF_NAME != VERSION $(cat VERSION)" >&2
+            exit 1
+          }
+
+      - name: make release
+        run: make release
+
+      - name: changelog notes
+        run: |
+          ver="${GITHUB_REF_NAME#v}"
+          awk -v ver="## $ver" '
+            $0 == ver { found=1; next }
+            found && /^## / { exit }
+            found { print }
+          ' CHANGELOG.md > notes.md
+          [ -s notes.md ] || echo "sl $ver" > notes.md
+
+      - name: create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ver="${GITHUB_REF_NAME#v}"
+          gh release create "$GITHUB_REF_NAME" \
+            "dist/sl-${ver}-macos-arm64.tar.gz" \
+            --title "sl $ver" \
+            --notes-file notes.md
