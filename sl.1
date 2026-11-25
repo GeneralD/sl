@@ -74,6 +74,11 @@ selects the bundled realistic locomotive
 .Pa ( share/sl/models/loco.usdz ) .
 glTF and GLB are not supported. The model is scaled to the
 locomotive's height; a missing or unreadable file exits with status 2.
+When cars are requested
+.Pq Fl Ns Ar n ,
+the bundled tender and coach USDZ models
+.Pq share/sl/models/
+are coupled behind the locomotive instead of the procedural cars.
 .It Fl -all
 Traverse every connected display.
 .It Fl -freeze Ar seconds

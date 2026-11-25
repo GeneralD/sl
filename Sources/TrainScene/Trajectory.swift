@@ -67,7 +67,12 @@ public struct Trajectory: Sendable {
         let start = laneWidth + margin + trainWidth / 2
         let end = -(margin + trainWidth / 2)
         let x = start + (end - start) * p
-        let finished = x + trainWidth / 2 <= -margin
+        // `end` is built so the right edge sits exactly at `-margin`
+        // at p == 1, but `x + trainWidth/2 <= -margin` is a borderline
+        // float compare — arbitrary consist widths (real car lengths)
+        // can land an ulp above and `finished` would never flip. The
+        // geometric condition is equivalent to reaching the end pose.
+        let finished = p >= 1 || x + trainWidth / 2 <= -margin
         guard fly else {
             let laneY = trainHeight / 2 + margin
             guard let zone = dock.first(where: { $0.contains(x) }) else {

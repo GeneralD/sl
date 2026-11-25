@@ -49,10 +49,45 @@ public enum ModelAsset {
         guard supportedExtensions.contains(url.pathExtension.lowercased()) else {
             throw LoadError.unsupportedFormat(url.pathExtension)
         }
+        return try normalized(try scene(at: url),
+                              targetHeight: targetHeight)
+    }
+
+    /// Raw bounding-box size of the asset at `path`, in the file's
+    /// own units — the proportion reference `ModelConsist` scales the
+    /// bundled cars against. Same `LoadError`s as `loadTrain`.
+    @MainActor
+    public static func sourceSize(at path: String) throws -> CGSize {
+        let url = URL(fileURLWithPath: path)
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            throw LoadError.missingFile
+        }
+        guard supportedExtensions.contains(url.pathExtension.lowercased()) else {
+            throw LoadError.unsupportedFormat(url.pathExtension)
+        }
+        let box = try scene(at: url).rootNode.boundingBox
+        let width = CGFloat(box.max.x - box.min.x)
+        let height = CGFloat(box.max.y - box.min.y)
+        guard width.isFinite, height.isFinite,
+              width > 0, height > 0 else {
+            throw LoadError.unreadable
+        }
+        return CGSize(width: width, height: height)
+    }
+
+    /// Raw bounding-box height of the asset at `path` — see
+    /// `sourceSize`.
+    @MainActor
+    public static func sourceHeight(at path: String) throws -> CGFloat {
+        try sourceSize(at: path).height
+    }
+
+    @MainActor
+    private static func scene(at url: URL) throws -> SCNScene {
         guard let scene = try? SCNScene(url: url, options: nil) else {
             throw LoadError.unreadable
         }
-        return try normalized(scene, targetHeight: targetHeight)
+        return scene
     }
 
     /// Wraps the scene's content in a `model-loco` node scaled so the
