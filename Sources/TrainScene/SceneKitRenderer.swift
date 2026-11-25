@@ -115,6 +115,7 @@ public final class SceneKitRenderer: Renderer {
         } else {
             train = ProceduralLocomotive(
                 livery: livery, scale: locoScale).node
+            attachLocomotiveEffects(to: train, scale: locoScale)
         }
         // `-<n>` coupling: the chain rides inside the train node so it
         // inherits pose, heading, wheelwork and disco. The chain lives

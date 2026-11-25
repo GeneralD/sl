@@ -18,6 +18,7 @@ public enum Registry {
         + discoChecks
         + hardeningChecks
         + modelAssetChecks
+        + smokeHeadlightChecks
         + screamerChecks
         + wheelworkChecks
         + dockHopChecks
