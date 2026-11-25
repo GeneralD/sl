@@ -94,6 +94,7 @@
   `-s` still gates actual sound.
 
 - [task-28] Dock hop: zone detected via `visibleFrame.minY - frame.minY` > 8 (bottom Dock only — a side Dock insets minX/maxX); the Dock's width is not public API, so the hop zone approximates it as a centered strip capped at 600pt; hop = 40px parabola + 0.15 rad pitch, skipped under `-F` flight; `--all` collects one zone per screen mapped into global lane coords
+- [task-32] `-G` swaps the node builder (`ProceduralTGV`, bullet silhouette) rather than the `Livery` enum — silhouette, not paint; `-c` is the red-edged scheme: vermilion body, charcoal trim (was brass); `Livery.variant` stays reserved
 
 - [25] Frame pacing: `RunLoop` drives `onFrame` from CVDisplayLink
   (vsync-locked, ProMotion-aware, no drift) via a Sendable trampoline
