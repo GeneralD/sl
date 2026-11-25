@@ -10,6 +10,7 @@ public enum Registry {
         + audioAssetChecks
         + sceneKitChecks
         + trajectoryChecks
+        + flightChecks
         + allDisplayChecks
         + modelAssetChecks
 }

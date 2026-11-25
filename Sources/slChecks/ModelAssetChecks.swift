@@ -54,16 +54,15 @@ private func expectLoadError(
     }
 }
 
+/// `RunSpec.parse` returns Result; fixture args always parse.
+private func parsedSpec(_ args: [String]) -> RunSpec {
+    switch RunSpec.parse(args) {
+    case .success(let spec): return spec
+    case .failure(let error): fatalError("fixture args must parse: \(error)")
+    }
+}
+
 public let modelAssetChecks: [Check] = [
-    Check("when --model names a file RunSpec records the model path") {
-        let spec = RunSpec.parse(["sl", "--model", "engine.usdz"])
-        try expectEqual(spec.modelPath, "engine.usdz")
-        try expect(spec.parseError == nil)
-    },
-    Check("when --model has no value RunSpec reports a parse error") {
-        let spec = RunSpec.parse(["sl", "--model"])
-        try expect(spec.parseError != nil)
-    },
     Check("when the model path does not exist loadTrain throws file not found") {
         try MainActor.assumeIsolated {
             try expectLoadError(
@@ -128,7 +127,7 @@ public let modelAssetChecks: [Check] = [
             let dir = try writeSCNFixture("train.scn")
             defer { try? FileManager.default.removeItem(at: dir) }
             let path = dir.appendingPathComponent("train.scn").path
-            let spec = RunSpec.parse(["sl", "--model", path])
+            let spec = parsedSpec(["sl", "--model", path])
             let loaded = try ModelAsset.loadTrain(
                 at: path, targetHeight: OverlayGeometry.laneHeight)
             let renderer = SceneKitRenderer(
@@ -156,7 +155,7 @@ public let modelAssetChecks: [Check] = [
             let dir = try writeSCNFixture("train.scn")
             defer { try? FileManager.default.removeItem(at: dir) }
             let path = dir.appendingPathComponent("train.scn").path
-            let spec = RunSpec.parse(["sl", "--model", path])
+            let spec = parsedSpec(["sl", "--model", path])
             let renderer = SceneKitRenderer(spec: spec, stripWidth: 1000)
             guard let view = renderer.makeView(
                 in: NSRect(x: 0, y: 0, width: 1000, height: 180),

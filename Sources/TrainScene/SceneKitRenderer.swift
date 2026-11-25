@@ -25,12 +25,12 @@ public final class SceneKitRenderer: Renderer {
 
     /// `model` is a `--model` asset already normalized by
     /// `ModelAsset.loadTrain`; when absent the placeholder primitive
-    /// (soon the procedural loco) stands in. A `spec.modelPath` with no
+    /// (soon the procedural loco) stands in. A `spec.model` with no
     /// `model` argument re-loads defensively — `sl` preflights the load
     /// so a bad path exits 2 before the window opens.
     public init(spec: RunSpec, stripWidth: CGFloat,
                 model: ModelAsset.Loaded? = nil) {
-        let loaded = model ?? spec.modelPath.flatMap {
+        let loaded = model ?? spec.model.flatMap {
             try? ModelAsset.loadTrain(
                 at: $0, targetHeight: OverlayGeometry.laneHeight)
         }
@@ -39,7 +39,8 @@ public final class SceneKitRenderer: Renderer {
             laneWidth: Double(stripWidth),
             trainWidth: Double(trainSize.width),
             trainHeight: Double(trainSize.height),
-            duration: 8
+            duration: 8,
+            fly: spec.fly
         )
         self.trajectory = trajectory
         self.model = loaded

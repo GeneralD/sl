@@ -19,6 +19,11 @@ brew install generald/tap/sl3d   # installs a binary still named `sl`
 # or from source — needs only Command Line Tools, no Xcode
 git clone https://github.com/GeneralD/sl && cd sl
 make install                      # installs to /opt/homebrew (PREFIX=…)
+
+# staged install — verify without touching the system
+make install PREFIX=/usr/local DESTDIR=/tmp/sl-dest
+/tmp/sl-dest/usr/local/bin/sl -v
+man -M /tmp/sl-dest/usr/local/share/man sl
 ```
 
 ## Usage

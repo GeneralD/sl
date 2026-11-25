@@ -7,7 +7,15 @@ import TrainScene
 // Skeleton wiring: flag surface works headless; the overlay run is what
 // the fleet builds out behind this same shape.
 
-let spec = RunSpec.parse(ProcessInfo.processInfo.arguments)
+let spec: RunSpec
+switch RunSpec.parse(ProcessInfo.processInfo.arguments) {
+case .success(let parsed):
+    spec = parsed
+case .failure(let error):
+    FileHandle.standardError.write(Data("sl: \(error.message)\n".utf8))
+    FileHandle.standardError.write(Data(RunSpec.usage().utf8))
+    exit(2)
+}
 
 if spec.versionRequested {
     print(SLVersion.current)
@@ -15,14 +23,8 @@ if spec.versionRequested {
 }
 
 if spec.helpRequested {
-    print(RunSpec.usage)
+    print(RunSpec.usage())
     exit(0)
-}
-
-if let error = spec.parseError {
-    FileHandle.standardError.write(Data("sl: \(error)\n".utf8))
-    FileHandle.standardError.write(Data(RunSpec.usage.utf8))
-    exit(2)
 }
 
 // --- Overlay run -------------------------------------------------------
@@ -42,7 +44,7 @@ MainActor.assumeIsolated {
     // error — stderr + exit 2 before any window opens. The loaded,
     // lane-height-normalized node is handed to the renderer once.
     var model: ModelAsset.Loaded?
-    if let path = spec.modelPath {
+    if let path = spec.model {
         do {
             model = try ModelAsset.loadTrain(
                 at: path, targetHeight: OverlayGeometry.laneHeight)
@@ -60,7 +62,7 @@ MainActor.assumeIsolated {
     let freeze: @MainActor (TimeInterval) -> Void
 
     if spec.allDisplays {
-        let stage = MultiScreenTrain(lane: lane)
+        let stage = MultiScreenTrain(lane: lane, fly: spec.fly)
         for screen in screens {
             let strip = OverlayGeometry.bottomStrip(
                 on: screen, height: OverlayGeometry.laneHeight)
@@ -93,7 +95,8 @@ MainActor.assumeIsolated {
         freeze = { renderer.render(at: $0) }
     }
 
-    if let freezeAt = spec.freezeAt {
+    if let freezeAt = spec.freeze {
+
         freezeMode = true
         freeze(freezeAt)
     } else {
