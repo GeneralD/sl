@@ -81,6 +81,20 @@ MainActor.assumeIsolated {
         exit(1)
     }
 
+    // `--model` preflight: a missing or unloadable asset is a usage
+    // error — stderr + exit 2 before any window opens. The loaded,
+    // lane-height-normalized node is handed to the renderer once.
+    var model: ModelAsset.Loaded?
+    if let path = spec.model {
+        do {
+            model = try ModelAsset.loadTrain(
+                at: path, targetHeight: OverlayGeometry.laneHeight)
+        } catch {
+            FileHandle.standardError.write(Data(
+                "sl: cannot load model '\(path)': \(error)\n".utf8))
+            exit(2)
+        }
+    }
 
     // The run's per-frame driver: the single-display renderer, or the
     // multi-display stage under --all (one window per screen).
@@ -90,7 +104,7 @@ MainActor.assumeIsolated {
     let ui = RunUI()
 
     if spec.allDisplays {
-        let stage = MultiScreenTrain(lane: lane)
+        let stage = MultiScreenTrain(lane: lane, fly: spec.fly)
         for screen in screens {
             let strip = OverlayGeometry.bottomStrip(
                 on: screen, height: OverlayGeometry.laneHeight)
@@ -114,7 +128,8 @@ MainActor.assumeIsolated {
         }
         freeze = { stage.update(t: $0) }
     } else {
-        let renderer = RendererFactory.make(spec: spec, stripWidth: lane.width)
+        let renderer = RendererFactory.make(
+            spec: spec, stripWidth: lane.width, model: model)
         let window = OverlayWindow(frame: lane)
         window.contentView = renderer.makeView(
             in: NSRect(origin: .zero, size: lane.size), spec: spec)
