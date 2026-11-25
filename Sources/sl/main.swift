@@ -7,7 +7,15 @@ import TrainScene
 // Skeleton wiring: flag surface works headless; the overlay run is what
 // the fleet builds out behind this same shape.
 
-let spec = RunSpec.parse(ProcessInfo.processInfo.arguments)
+let spec: RunSpec
+switch RunSpec.parse(ProcessInfo.processInfo.arguments) {
+case .success(let parsed):
+    spec = parsed
+case .failure(let error):
+    FileHandle.standardError.write(Data("sl: \(error.message)\n".utf8))
+    FileHandle.standardError.write(Data(RunSpec.usage().utf8))
+    exit(2)
+}
 
 if spec.versionRequested {
     print(SLVersion.current)
@@ -15,14 +23,8 @@ if spec.versionRequested {
 }
 
 if spec.helpRequested {
-    print(RunSpec.usage)
+    print(RunSpec.usage())
     exit(0)
-}
-
-if let error = spec.parseError {
-    FileHandle.standardError.write(Data("sl: \(error)\n".utf8))
-    FileHandle.standardError.write(Data(RunSpec.usage.utf8))
-    exit(2)
 }
 
 // --- Overlay run -------------------------------------------------------
@@ -42,7 +44,7 @@ MainActor.assumeIsolated {
         in: NSRect(origin: .zero, size: laneFrame.size), spec: spec)
     window.orderFrontRegardless()
 
-    if let freeze = spec.freezeAt {
+    if let freeze = spec.freeze {
         freezeMode = true
         renderer.render(at: freeze)
     } else {

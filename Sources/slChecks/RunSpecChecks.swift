@@ -1,19 +1,133 @@
 import SLCore
 import SLTestKit
 
+/// Unwraps a successful parse or fails the check with the parse error.
+private func spec(_ args: [String]) throws -> RunSpec {
+    switch RunSpec.parse(args) {
+    case .success(let spec): return spec
+    case .failure(let error):
+        try expect(false, "parse failed: \(error.message)")
+        fatalError("unreachable: expect(false) always throws")
+    }
+}
+
+/// Parses `args` and asserts one Bool field — spec-sentence shorthand.
+private func expectFlag(_ args: [String], _ field: KeyPath<RunSpec, Bool>) throws {
+    let value = try spec(args)[keyPath: field]
+    try expect(value, "\(args) did not set \(field)")
+}
+
+private func parseFails(_ args: [String]) throws {
+    if case .success = RunSpec.parse(args) {
+        try expect(false, "expected parse failure for \(args)")
+    }
+}
+
 public let runSpecChecks: [Check] = [
+    Check("when invoked with no arguments it returns the default spec") {
+        let s = try spec(["sl"])
+        try expect(!s.accident && !s.c51 && !s.disco && !s.allowInterrupt)
+        try expect(!s.fly && !s.tgv && !s.little && !s.sound)
+        try expectEqual(s.cars, 1)
+        try expectEqual(s.speedFactor, 1.0)
+        try expect(s.model == nil && !s.allDisplays && s.freeze == nil && !s.stealth)
+        try expect(!s.versionRequested && !s.helpRequested)
+    },
+    Check("when invoked with -a it requests the accident") {
+        try expectFlag(["sl", "-a"], \.accident)
+    },
+    Check("when invoked with -c it requests the C51") {
+        try expectFlag(["sl", "-c"], \.c51)
+    },
+    Check("when invoked with -d it requests disco mode") {
+        try expectFlag(["sl", "-d"], \.disco)
+    },
+    Check("when invoked with -e it allows interruption") {
+        try expectFlag(["sl", "-e"], \.allowInterrupt)
+    },
+    Check("when invoked with -F it requests flight") {
+        try expectFlag(["sl", "-F"], \.fly)
+    },
+    Check("when invoked with -G it requests the TGV") {
+        try expectFlag(["sl", "-G"], \.tgv)
+    },
+    Check("when invoked with -l it requests the little train") {
+        try expectFlag(["sl", "-l"], \.little)
+    },
+    Check("when invoked with -s it requests sound") {
+        try expectFlag(["sl", "-s"], \.sound)
+    },
+    Check("when invoked with -w it raises the speed factor") {
+        let s = try spec(["sl", "-w"])
+        try expect(s.speedFactor > 1.0)
+    },
     Check("when invoked with -v it requests the version") {
-        try expect(RunSpec.parse(["sl", "-v"]).versionRequested)
+        try expectFlag(["sl", "-v"], \.versionRequested)
+    },
+    Check("when invoked with -h it requests help") {
+        try expectFlag(["sl", "-h"], \.helpRequested)
     },
     Check("when invoked with --version it requests the version") {
-        try expect(RunSpec.parse(["sl", "--version"]).versionRequested)
+        try expectFlag(["sl", "--version"], \.versionRequested)
     },
     Check("when invoked with --help it requests help") {
-        try expect(RunSpec.parse(["sl", "--help"]).helpRequested)
+        try expectFlag(["sl", "--help"], \.helpRequested)
     },
-    Check("when invoked with an unknown flag it reports a parse error") {
-        let spec = RunSpec.parse(["sl", "--bogus"])
-        try expect(spec.parseError != nil)
+    Check("when invoked with a clustered short group it sets every flag") {
+        let s = try spec(["sl", "-alF"])
+        try expect(s.accident && s.little && s.fly)
+        try expect(!s.c51 && !s.disco)
+    },
+    Check("when invoked with -3 it pulls three cars") {
+        let s = try spec(["sl", "-3"])
+        try expectEqual(s.cars, 3)
+    },
+    Check("when invoked with -10 it pulls ten cars") {
+        let s = try spec(["sl", "-10"])
+        try expectEqual(s.cars, 10)
+    },
+    Check("when invoked with -0 it reports a parse error") {
+        try parseFails(["sl", "-0"])
+    },
+    Check("when invoked with -11 it reports a parse error") {
+        try parseFails(["sl", "-11"])
+    },
+    Check("when invoked with --all it traverses every display") {
+        try expectFlag(["sl", "--all"], \.allDisplays)
+    },
+    Check("when invoked with --model and a file it records the model") {
+        let s = try spec(["sl", "--model", "engine.usdz"])
+        try expectEqual(s.model, "engine.usdz")
+    },
+    Check("when invoked with --model=file it records the model") {
+        let s = try spec(["sl", "--model=train.scn"])
+        try expectEqual(s.model, "train.scn")
+    },
+    Check("when invoked with --freeze and seconds it records the freeze") {
+        let s = try spec(["sl", "--freeze", "2.5"])
+        try expectEqual(s.freeze, 2.5)
+    },
+    Check("when invoked with --freeze=seconds it records the freeze") {
+        let s = try spec(["sl", "--freeze=1.25"])
+        try expectEqual(s.freeze, 1.25)
+    },
+    Check("when invoked with --stealth it requests stealth") {
+        try expectFlag(["sl", "--stealth"], \.stealth)
+    },
+    Check("when invoked with --model and no value it reports a parse error") {
+        try parseFails(["sl", "--model"])
+    },
+    Check("when invoked with --freeze and a non-number it reports a parse error") {
+        try parseFails(["sl", "--freeze", "soon"])
+    },
+    Check("when invoked with an unknown short flag it reports a parse error") {
+        try parseFails(["sl", "-z"])
+    },
+    Check("when invoked with an unknown long flag it reports a parse error") {
+        try parseFails(["sl", "--bogus"])
+    },
+    Check("when invoked with a bare argument it reports a parse error") {
+        try parseFails(["sl", "railway"])
     },
 ]
 
