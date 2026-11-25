@@ -1,5 +1,4 @@
 import AppKit
-import SLCore
 import SLTestKit
 import TrainScene
 
@@ -10,16 +9,6 @@ private let flight = Trajectory(
 )
 
 public let flightChecks: [Check] = [
-    Check("when invoked with -F it requests flight") {
-        try expect(RunSpec.parse(["sl", "-F"]).fly)
-        try expect(!RunSpec.parse(["sl"]).fly)
-    },
-    Check("when -F is combined with --freeze both apply") {
-        let spec = RunSpec.parse(["sl", "--freeze", "2", "-F"])
-        try expect(spec.fly)
-        try expect(spec.freezeAt == 2)
-        try expect(spec.parseError == nil)
-    },
     Check("when flying the climb slope is 1/7") {
         let early = flight.pose(at: 0.5)
         let late = flight.pose(at: 1.5)

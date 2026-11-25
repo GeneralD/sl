@@ -7,7 +7,15 @@ import TrainScene
 // Skeleton wiring: flag surface works headless; the overlay run is what
 // the fleet builds out behind this same shape.
 
-let spec = RunSpec.parse(ProcessInfo.processInfo.arguments)
+let spec: RunSpec
+switch RunSpec.parse(ProcessInfo.processInfo.arguments) {
+case .success(let parsed):
+    spec = parsed
+case .failure(let error):
+    FileHandle.standardError.write(Data("sl: \(error.message)\n".utf8))
+    FileHandle.standardError.write(Data(RunSpec.usage().utf8))
+    exit(2)
+}
 
 if spec.versionRequested {
     print(SLVersion.current)
@@ -15,14 +23,8 @@ if spec.versionRequested {
 }
 
 if spec.helpRequested {
-    print(RunSpec.usage)
+    print(RunSpec.usage())
     exit(0)
-}
-
-if let error = spec.parseError {
-    FileHandle.standardError.write(Data("sl: \(error)\n".utf8))
-    FileHandle.standardError.write(Data(RunSpec.usage.utf8))
-    exit(2)
 }
 
 // --- Overlay run -------------------------------------------------------
@@ -37,6 +39,7 @@ MainActor.assumeIsolated {
         FileHandle.standardError.write(Data("sl: no display attached\n".utf8))
         exit(1)
     }
+
 
     // The run's per-frame driver: the single-display renderer, or the
     // multi-display stage under --all (one window per screen).
@@ -77,7 +80,8 @@ MainActor.assumeIsolated {
         freeze = { renderer.render(at: $0) }
     }
 
-    if let freezeAt = spec.freezeAt {
+    if let freezeAt = spec.freeze {
+
         freezeMode = true
         freeze(freezeAt)
     } else {

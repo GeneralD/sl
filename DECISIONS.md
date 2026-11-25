@@ -49,6 +49,7 @@
   steam — both ride the trajectory/particle systems the boring tier
   already builds (notch hop dropped: the lane is a bottom strip, the
   notch never intersects it)
+- [task-11] RunSpec defaults: bare `sl` pulls 1 car (`cars = 1`); `-w` sets `speedFactor = 1.5`; `-h` is the help alias (undocumented in sl.1, which is off-limits); `parse` returns `Result` so `main.swift` got a mechanical unwrap — run-loop wiring untouched
 - [task-13] `TrainPresenter` applies poses to the lane `NSView` today;
   the SceneKit `SCNNode` swap keeps the same `update(t:)` call (no
   SceneKit renderer exists yet — presenter stays view-agnostic)

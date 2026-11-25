@@ -7,17 +7,28 @@ import TrainScene
 private let leftScreen = NSRect(x: 0, y: 0, width: 1000, height: 800)
 private let rightScreen = NSRect(x: 1000, y: 0, width: 1000, height: 800)
 
+private func spec(_ args: [String]) throws -> RunSpec {
+    switch RunSpec.parse(args) {
+    case .success(let spec): return spec
+    case .failure(let error):
+        try expect(false, "parse failed: \(error.message)")
+        fatalError("unreachable: expect(false) always throws")
+    }
+}
+
 public let allDisplayChecks: [Check] = [
     Check("when invoked with --all it requests every display") {
-        try expect(RunSpec.parse(["sl", "--all"]).allDisplays)
+        let parsed = try spec(["sl", "--all"])
+        try expect(parsed.allDisplays)
     },
     Check("when invoked without --all it keeps the single-display fallback") {
-        try expect(!RunSpec.parse(["sl"]).allDisplays)
+        let parsed = try spec(["sl"])
+        try expect(!parsed.allDisplays)
     },
     Check("when --all is combined with --freeze it keeps the freeze offset") {
-        let spec = RunSpec.parse(["sl", "--all", "--freeze", "2.5"])
+        let spec = try spec(["sl", "--all", "--freeze", "2.5"])
         try expect(spec.allDisplays)
-        try expectEqual(spec.freezeAt, 2.5)
+        try expectEqual(spec.freeze, 2.5)
     },
     Check("when building the lane from screen frames it spans every screen at the lowest bottom edge") {
         let lane = OverlayGeometry.globalLane(frames: [
