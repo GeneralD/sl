@@ -1,23 +1,52 @@
 #!/bin/zsh
-# scripts/shot <out.png> [-- sl-args]
+# scripts/shot <out.png> [--display N] [--margin PT] [--rect x,y,w,h] [--render] [-- sl-args]
 # Freezes the train mid-run and captures the screen. One shot at a time.
+# The saved PNG is cropped to the train lane strip (lane + margin) and
+# verified: pixels frozen across two run captures yet gone afterwards
+# must cover the lane — churning desktop content cannot fake it, and an
+# empty lane fails loudly. A full-desktop frame is never written.
+# --render skips the screen entirely and writes an offscreen lane
+# render instead — deterministic evidence with zero desktop content.
 set -uo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
 LOCKDIR="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")/.hackathon"
 mkdir -p "$LOCKDIR"
 
+# --- locked re-entry: positional shot args, rest are sl args -----------
 if [ "${1:-}" = "--locked" ]; then
-    # already inside shot.lock: $2 = out, rest = sl args
-    out="$2"; shift 2
-else
-    out="${1:?usage: scripts/shot <out.png> [-- sl-args]}"
-    shift || true
+    out="$2"; display="$3"; margin="$4"; rect="$5"; render="$6"
+    shift 6
     [ "${1:-}" = "--" ] && shift
+    slargs=("$@")
+else
+    # --- argument parse -------------------------------------------------
+    out="${1:?usage: scripts/shot <out.png> [--display N] [--margin PT] [--rect x,y,w,h] [--render] [-- sl-args]}"
+    shift
+    display=1
+    margin=""
+    rect=""
+    render=0
+    slargs=()
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --) shift; slargs=("$@"); break ;;
+            --display) display="${2:?--display needs a value}"; shift 2 ;;
+            --margin)  margin="${2:?--margin needs a value}";  shift 2 ;;
+            --rect)    rect="${2:?--rect needs a value}";    shift 2 ;;
+            --render)  render=1; shift ;;
+            *) slargs=("$@"); break ;;
+        esac
+    done
+    [[ "$display" == <-> && "$display" -ge 1 ]] \
+        || { echo "shot: bad --display '$display'" >&2; exit 2; }
     mkdir -p "$(dirname "$out")"
+
+    # --- lock -----------------------------------------------------------
     for _try in 1 2 3 4 5 6; do
         if /usr/bin/lockf -t 0 "$LOCKDIR/shot.lock" /usr/bin/true 2>/dev/null; then
-            exec /usr/bin/lockf -t 0 "$LOCKDIR/shot.lock" "$0" --locked "$out" "$@"
+            exec /usr/bin/lockf -t 0 "$LOCKDIR/shot.lock" \
+                "$0" --locked "$out" "$display" "$margin" "$rect" "$render" -- "${slargs[@]}"
         fi
         sleep 3
     done
@@ -25,16 +54,66 @@ else
     exit 1
 fi
 
+# --- locked section -----------------------------------------------------
 export DEVELOPER_DIR=/Library/Developer/CommandLineTools
 SCRATCH="$LOCKDIR/swiftpm-scratch"
-swift build --scratch-path "$SCRATCH" 2>&1 | tail -5
+swift build --scratch-path "$SCRATCH" 2>&1 | tail -20
+[ "${pipestatus[1]:-0}" = "0" ] || { echo "shot: FAIL — swift build" >&2; exit 1; }
 
 BIN="$SCRATCH/debug/sl"
+CHECKS="$SCRATCH/debug/slChecks"
 FREEZE_T="${SL_SHOT_T:-2.0}"
-"$BIN" --freeze "$FREEZE_T" "$@" &
+
+fail() { echo "shot: FAIL — $*" >&2; exit 1; }
+
+# Offscreen evidence: no screen, no desktop pixels, deterministic.
+if [ "$render" = "1" ]; then
+    "$CHECKS" shot-render "$out" --freeze "$FREEZE_T" "${slargs[@]}" \
+        || fail "render produced no train evidence"
+    echo "$out"
+    exit 0
+fi
+
+TMPD="$(mktemp -d "${TMPDIR:-/tmp}/sl-shot.XXXXXX")"
+pid=""
+trap '[ -n "${SL_SHOT_KEEP:-}" ] || rm -rf "$TMPD"; [ -n "$pid" ] && kill "$pid" 2>/dev/null' EXIT
+
+lane_args=(--display "$display")
+[ -n "$margin" ] && lane_args+=(--margin "$margin")
+[ -n "$rect" ] && lane_args+=(--rect "$rect")
+lane() { "$CHECKS" shot-lane "$1" "$2" "${lane_args[@]}"; }
+
+# Train frame — two captures of the frozen run, then one after kill.
+"$BIN" --freeze "$FREEZE_T" "${slargs[@]}" &
 pid=$!
 sleep "${SL_SHOT_DELAY:-2}"
-/usr/sbin/screencapture -x "$out"
+kill -0 "$pid" 2>/dev/null || fail "sl exited before capture"
+/usr/sbin/screencapture -x -D "$display" "$TMPD/train-a-full.png" \
+    || fail "screencapture (train a)"
+sleep "${SL_SHOT_GAP:-1}"
+/usr/sbin/screencapture -x -D "$display" "$TMPD/train-b-full.png" \
+    || fail "screencapture (train b)"
 kill "$pid" 2>/dev/null
 wait "$pid" 2>/dev/null
+pid=""
+sleep 1
+
+# Post-run: same strip after the overlay is gone.
+/usr/sbin/screencapture -x -D "$display" "$TMPD/after-full.png" \
+    || fail "screencapture (post-run)"
+lane "$TMPD/train-a-full.png" "$TMPD/train-a.png" \
+    || fail "cannot crop lane strip"
+lane "$TMPD/train-b-full.png" "$TMPD/train-b.png" \
+    || fail "cannot crop lane strip (second frame)"
+lane "$TMPD/after-full.png" "$TMPD/after-lane.png" \
+    || fail "cannot crop lane strip (post-run)"
+
+# Evidence = pixels frozen across both run captures yet gone after —
+# the train. Churning desktop content fails the frozen test, so an
+# empty lane cannot pass.
+"$CHECKS" shot-verify "$TMPD/train-a.png" "$TMPD/train-b.png" \
+    "$TMPD/after-lane.png" \
+    || fail "lane empty — capture shows no train"
+
+mv "$TMPD/train-a.png" "$out" || fail "cannot move crop to $out"
 echo "$out"

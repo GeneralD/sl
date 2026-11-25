@@ -9,10 +9,11 @@ background, `.screenSaver` level, `.canJoinAllSpaces`, `.accessory`
 activation policy) + `PlaceholderRenderer` red rect + `sl --freeze 2`
 held by `scripts/shot /tmp/….png`.
 
-**Result:** WORKS — verified on this machine, 2026-11-25
-(`docs/shots/first-overlay.png`): the frozen frame shows the placeholder
-rect composited over third-party windows in the bottom lane, and the
-`screencapture -x` PNG contains the level-1000 window content.
+**Result:** WORKS — verified on this machine, 2026-11-25: the frozen
+frame showed the placeholder rect composited over third-party windows in
+the bottom lane, and the `screencapture -x` PNG contained the
+level-1000 window content. (The evidence PNG was later purged in #68 —
+it was a full-desktop capture.)
 
 **Decisions confirmed:**
 

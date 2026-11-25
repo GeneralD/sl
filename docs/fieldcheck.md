@@ -64,7 +64,8 @@ lane — the train is decoration, never a hit target.
 ### Evidence
 
 `docs/shots/18-clickthrough.png` — train lane composited over the
-TextEdit window that received the click.
+TextEdit window that received the click. (Purged in #68: it was a
+full-desktop capture; future evidence is lane-cropped.)
 
 ### Result
 
