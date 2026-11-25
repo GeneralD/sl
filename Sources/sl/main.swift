@@ -33,27 +33,62 @@ app.setActivationPolicy(.accessory)
 
 var freezeMode = false
 MainActor.assumeIsolated {
-    guard let screen = OverlayGeometry.frontmostScreen() else {
+    let screens = OverlayGeometry.runScreens(all: spec.allDisplays)
+    guard let lane = OverlayGeometry.lane(
+        on: screens, height: OverlayGeometry.laneHeight) else {
         FileHandle.standardError.write(Data("sl: no display attached\n".utf8))
         exit(1)
     }
-    let laneFrame = OverlayGeometry.bottomStrip(on: screen, height: 180)
-    let window = OverlayWindow(frame: laneFrame)
-    let renderer = RendererFactory.make(spec: spec, stripWidth: laneFrame.width)
-    window.contentView = renderer.makeView(
-        in: NSRect(origin: .zero, size: laneFrame.size), spec: spec)
-    window.orderFrontRegardless()
 
-    if let freeze = spec.freeze {
+    // The run's per-frame driver: the single-display renderer, or the
+    // multi-display stage under --all (one window per screen).
+    let duration: TimeInterval
+    let step: @MainActor (TimeInterval) -> Bool
+    let freeze: @MainActor (TimeInterval) -> Void
+
+    if spec.allDisplays {
+        let stage = MultiScreenTrain(lane: lane)
+        for screen in screens {
+            let strip = OverlayGeometry.bottomStrip(
+                on: screen, height: OverlayGeometry.laneHeight)
+            let window = OverlayWindow(frame: strip)
+            let content = NSView(frame: NSRect(origin: .zero, size: strip.size))
+            content.wantsLayer = true
+            content.layer?.backgroundColor = NSColor.clear.cgColor
+            let node = TrainGlyph.makeView()
+            node.frame = NSRect(origin: .zero, size: TrainGlyph.size)
+            content.addSubview(node)
+            window.contentView = content
+            window.orderFrontRegardless()
+            stage.attach(screenFrame: screen.frame, node: node)
+        }
+        duration = stage.duration
+        step = { t in
+            stage.update(t: t)
+            return !stage.finished
+        }
+        freeze = { stage.update(t: $0) }
+    } else {
+        let renderer = RendererFactory.make(spec: spec, stripWidth: lane.width)
+        let window = OverlayWindow(frame: lane)
+        window.contentView = renderer.makeView(
+            in: NSRect(origin: .zero, size: lane.size), spec: spec)
+        window.orderFrontRegardless()
+        duration = renderer.duration
+        step = { renderer.step(to: $0) }
+        freeze = { renderer.render(at: $0) }
+    }
+
+    if let freezeAt = spec.freeze {
         freezeMode = true
-        renderer.render(at: freeze)
+        freeze(freezeAt)
     } else {
         let start = Date()
-        let hardStop = start.addingTimeInterval(renderer.duration + 30)
+        let hardStop = start.addingTimeInterval(duration + 30)
         Timer.scheduledTimer(withTimeInterval: 1.0 / 120, repeats: true) { timer in
             let alive = MainActor.assumeIsolated {
                 let t = Date().timeIntervalSince(start)
-                return renderer.step(to: t) && Date() <= hardStop
+                return step(t) && Date() <= hardStop
             }
             if !alive {
                 timer.invalidate()

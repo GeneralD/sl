@@ -133,8 +133,15 @@ every screen, not just the main one.
 2. Start a held run on all displays: `scripts/run --all --freeze 300`.
    (Bare `scripts/run` targets only the main/frontmost screen — that
    single-display behavior is the baseline, check it separately.)
-3. Drag a window onto the second display, then look at both bottom edges.
-4. Capture each display. `screencapture` can target one display:
+3. Watch the bottom edges while the train crosses: it enters at the
+   right edge of the **rightmost** display, crosses the seam onto the
+   left display, and exits off the left edge — one train, one global
+   lane spanning every screen (`OverlayGeometry.globalLane`), not one
+   independent train per display.
+4. Swap the displays' left/right positions in Arrangement and re-run —
+   the lane follows the physical layout (global `NSScreen` frames), not
+   `NSScreen.screens` ordering.
+5. Capture each display. `screencapture` can target one display:
 
    ```sh
    screencapture -x -D 1 docs/shots/NN-displays-main.png
@@ -142,15 +149,25 @@ every screen, not just the main one.
    ```
 
    (`-D` numbering follows the display arrangement in
-   System Settings → Displays.)
+   System Settings → Displays.) Time the captures for `t ≈ 0.8` (train
+   over the right screen) and `t ≈ 6.2` (over the left screen) of the
+   8 s crossing — or just hold with `--freeze <t>`.
 
 ### Expected
 
-- One lane per connected display; each train crosses its own screen's
-  bottom edge in the correct direction for that display's geometry.
+- One lane window per connected display; the single train is visible on
+  a display only while its global rect intersects that display's strip.
 - No lane on a display that is asleep or disconnected mid-run (windows
   must follow display connect/disconnect without crashing).
 - Without `--all`: exactly one lane, on the main display.
+
+### Known limits
+
+- Displays at different heights/vertical offsets share one global lane
+  anchored at the lowest bottom edge; a display whose strip doesn't
+  intersect the train's global rect simply doesn't show it.
+- Mirrored/rotated arrangements are untested — the lane math assumes
+  axis-aligned frames.
 
 ### Evidence
 
@@ -158,8 +175,7 @@ every screen, not just the main one.
 
 ### Result
 
-- _pending — `--all` traversal is epic #10 feature work; run once the
-  flag lands._
+- _pending — run on a host with two displays._
 
 ---
 
