@@ -85,3 +85,4 @@
   audio-tail/fade-out finish sequence rides inside `OverlayDriver`'s
   onFrame so RunLoop stays traversal-agnostic
 - [task-28] Dock hop: zone detected via `visibleFrame.minY - frame.minY` > 8 (bottom Dock only — a side Dock insets minX/maxX); the Dock's width is not public API, so the hop zone approximates it as a centered strip capped at 600pt; hop = 40px parabola + 0.15 rad pitch, skipped under `-F` flight; `--all` collects one zone per screen mapped into global lane coords
+- [task-23] Cars ride inside the train node so pose/heading/wheelwork/disco reach them; a --model wrapper pre-scales local space so the chain counter-scales by 1/nodeScale; consist center shifts +x by chainLength/2 and Trajectory.trainWidth grows by chainLength so the last car exits before finished; car wheels reuse the wheel-* hook so WheelworkAnimator spins them

@@ -20,4 +20,5 @@ public enum Registry {
         + modelAssetChecks
         + wheelworkChecks
         + dockHopChecks
+        + carChecks
 }
