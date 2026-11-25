@@ -1,15 +1,16 @@
 import Foundation
 import SLCore
 
-/// Picks the renderer for a run. `SL_RENDERER=scenkit` opts into the
-/// SceneKit spike renderer; anything else keeps the placeholder default.
-/// Kept out of `sl/main.swift` so slChecks can exercise the selection.
+/// Picks the renderer for a run. SceneKit is the committed renderer
+/// (spike B); `SL_RENDERER=placeholder` keeps the skeleton view around
+/// for A/B debugging. Kept out of `sl/main.swift` so slChecks can
+/// exercise the selection.
 @MainActor
 public enum RendererFactory {
     public static func make(spec: RunSpec, stripWidth: CGFloat) -> any Renderer {
-        if ProcessInfo.processInfo.environment["SL_RENDERER"] == "scenkit" {
-            return SceneKitRenderer(spec: spec, stripWidth: stripWidth)
+        if ProcessInfo.processInfo.environment["SL_RENDERER"] == "placeholder" {
+            return PlaceholderRenderer(spec: spec, stripWidth: stripWidth)
         }
-        return PlaceholderRenderer(spec: spec, stripWidth: stripWidth)
+        return SceneKitRenderer(spec: spec, stripWidth: stripWidth)
     }
 }

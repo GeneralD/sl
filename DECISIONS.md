@@ -59,3 +59,7 @@
   `SCNRenderer`, left at defaults). Evidence lives in
   `docs/spikes/b-scnview.md` and `docs/shots/spike-b-scenkit.png`;
   dev toggle `SL_RENDERER=scenkit`
+- [task-19] `SceneKitRenderer` is the default renderer — transparent
+  `SCNView` + ortho pixel-space camera + ambient/directional lights +
+  placeholder primitive driven by `Trajectory`; `SL_RENDERER=placeholder`
+  keeps the skeleton view for A/B debugging
