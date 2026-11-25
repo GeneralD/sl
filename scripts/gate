@@ -1,0 +1,101 @@
+#!/bin/zsh
+# scripts/gate — the one gate. Same command for every issue.
+# Acquires a machine-budget slot (.hackathon/gate.<n>.lock), then:
+# build → checks → coverage ratchet → arch-graph → secrets → lint → smoke.
+set -uo pipefail
+
+cd "$(git rev-parse --show-toplevel)"
+LOCKDIR="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")/.hackathon"
+mkdir -p "$LOCKDIR"
+
+# --- slot acquire (orchestrator-owned; workers reach this only via gate) ---
+if [ "${1:-}" != "--locked" ]; then
+    for _try in 1 2 3 4 5 6 7 8 9 10; do
+        for i in 1 2 3 4; do
+            l="$LOCKDIR/gate.$i.lock"
+            if /usr/bin/lockf -t 0 "$l" /usr/bin/true 2>/dev/null; then
+                exec /usr/bin/lockf -t 0 "$l" "$0" --locked "$@"
+            fi
+        done
+        sleep 5
+    done
+    echo "gate: no slot free after retries" >&2
+    exit 1
+fi
+
+export DEVELOPER_DIR=/Library/Developer/CommandLineTools
+SCRATCH="$LOCKDIR/swiftpm-scratch"
+mkdir -p "$SCRATCH"
+fail() { echo "gate: FAIL — $*" >&2; exit 1; }
+
+step() { printf '\n== %s ==\n' "$*"; }
+
+# 1. build
+step "swift build"
+swift build --scratch-path "$SCRATCH" 2>&1 | tail -20
+[ "${pipestatus[1]:-0}" = "0" ] || fail "swift build"
+
+# 2. checks (spec-sentence harness; XCTest is absent on CLT by design)
+step "slChecks"
+"$SCRATCH/debug/slChecks" || fail "checks"
+
+# 3. coverage ratchet
+step "coverage"
+CSCRATCH="$LOCKDIR/swiftpm-coverage"
+mkdir -p "$CSCRATCH"
+swift build --scratch-path "$CSCRATCH" --enable-code-coverage 2>&1 | tail -5
+[ "${pipestatus[1]:-0}" = "0" ] || fail "coverage build"
+LLVM_PROFILE_FILE="$LOCKDIR/cov-%p.profraw" "$CSCRATCH/debug/slChecks" >/dev/null 2>&1 || true
+/usr/bin/xcrun llvm-profdata merge -sparse "$LOCKDIR"/cov-*.profraw \
+    -o "$LOCKDIR/cov.profdata" 2>/dev/null || fail "llvm-profdata"
+/usr/bin/xcrun llvm-cov export --summary-only -format=text \
+    "$CSCRATCH/debug/slChecks" -instr-profile "$LOCKDIR/cov.profdata" 2>/dev/null \
+    | /usr/bin/python3 -c 'import json,sys; print(round(json.load(sys.stdin)["data"][0]["totals"]["lines"]["percent"],1))' \
+    > "$LOCKDIR/cov-pct.txt" || fail "llvm-cov"
+pct=$(cat "$LOCKDIR/cov-pct.txt")
+echo "coverage: ${pct}%"
+if [ -f coverage-baseline.txt ]; then
+    base=$(cat coverage-baseline.txt)
+else
+    base=0
+fi
+/usr/bin/awk -v p="$pct" -v b="$base" 'BEGIN{exit !(p+0<b+0)}' \
+    && fail "coverage ${pct}% below baseline ${base}%"
+/usr/bin/awk -v p="$pct" -v b="$base" 'BEGIN{exit !(p+0>b+0)}' \
+    && { echo "$pct" > coverage-baseline.txt; echo "baseline raised to ${pct}% — commit it"; }
+/bin/rm -f "$LOCKDIR"/cov-*.profraw
+
+# 4. arch graph staleness
+step "arch-graph"
+scripts/arch-graph --check || fail "docs/ARCHITECTURE.md stale — run scripts/arch-graph"
+
+# 5. secrets scan (gitleaks substitute; brew is Xcode-license-blocked)
+step "secrets"
+files=$(git ls-files)
+if [ -n "$files" ]; then
+    if print -r -- "$files" | /usr/bin/tr '\n' '\0' \
+        | /usr/bin/xargs -0 /usr/bin/grep -nIE \
+    '(BEGIN [A-Z ]*PRIVATE KEY|ghp_[A-Za-z0-9]{30,}|gho_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{20,}|AKIA[0-9A-Z]{16}|xox[baprs]-[A-Za-z0-9-]{10,}|sk-[A-Za-z0-9]{20,})' \
+        2>/dev/null; then
+        fail "secret-looking content in tracked files"
+    fi
+    if print -r -- "$files" | /usr/bin/grep -qE '(^|/)\.env'; then
+        fail ".env tracked"
+    fi
+fi
+
+# 6. invariant lint — CLT-only + no-sleeping-code
+step "lint"
+/usr/bin/grep -rn 'xcodebuild\|import XCTest\|import Testing\|\.xcassets' \
+    Sources Makefile Package.swift 2>/dev/null && fail "Xcode-only construct found"
+/usr/bin/grep -rn 'Thread\.sleep\|usleep(' Sources/ 2>/dev/null \
+    && fail "wall-clock sleep in product code (use Tick)"
+
+# 7. binary smoke (headless-safe flags only)
+step "smoke"
+out=$("$SCRATCH/debug/sl" -v) || fail "sl -v exit"
+[ -n "$out" ] || fail "sl -v empty"
+"$SCRATCH/debug/sl" --bogus >/dev/null 2>&1 && fail "sl --bogus should exit nonzero"
+"$SCRATCH/debug/sl" --help >/dev/null 2>&1 || fail "sl --help"
+
+echo; echo "gate: GREEN"

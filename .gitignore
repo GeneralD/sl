@@ -1,0 +1,9 @@
+.build/
+.swiftpm/
+.worktrees/
+.hackathon/
+.env
+.env.*
+*.profraw
+*.profdata
+.DS_Store

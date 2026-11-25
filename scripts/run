@@ -1,0 +1,10 @@
+#!/bin/zsh
+# scripts/run [-- sl-args] — build the debug binary and run it for real.
+set -uo pipefail
+cd "$(git rev-parse --show-toplevel)"
+export DEVELOPER_DIR=/Library/Developer/CommandLineTools
+LOCKDIR="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")/.hackathon"
+mkdir -p "$LOCKDIR"
+SCRATCH="$LOCKDIR/swiftpm-scratch"
+swift build --scratch-path "$SCRATCH" 2>&1 | tail -5
+exec "$SCRATCH/debug/sl" "$@"

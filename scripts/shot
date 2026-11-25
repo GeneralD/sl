@@ -1,0 +1,39 @@
+#!/bin/zsh
+# scripts/shot <out.png> [-- sl-args]
+# Freezes the train mid-run and captures the screen. One shot at a time.
+set -uo pipefail
+
+out="${1:?usage: scripts/shot <out.png> [-- sl-args]}"
+shift || true
+[ "${1:-}" = "--" ] && shift
+
+cd "$(git rev-parse --show-toplevel)"
+LOCKDIR="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")/.hackathon"
+mkdir -p "$LOCKDIR" "$(dirname "$out")"
+
+if [ "${1:-}" != "--locked" ]; then
+    for _try in 1 2 3 4 5 6; do
+        if /usr/bin/lockf -t 0 "$LOCKDIR/shot.lock" /usr/bin/true 2>/dev/null; then
+            exec /usr/bin/lockf -t 0 "$LOCKDIR/shot.lock" "$0" --locked "$out" "$@"
+        fi
+        sleep 3
+    done
+    echo "shot: lock busy" >&2
+    exit 1
+fi
+# after re-exec, $1 = --locked, $2 = out, rest = sl args
+out="$2"; shift 2
+
+export DEVELOPER_DIR=/Library/Developer/CommandLineTools
+SCRATCH="$LOCKDIR/swiftpm-scratch"
+swift build --scratch-path "$SCRATCH" 2>&1 | tail -5
+
+BIN="$SCRATCH/debug/sl"
+FREEZE_T="${SL_SHOT_T:-2.0}"
+"$BIN" --freeze "$FREEZE_T" "$@" &
+pid=$!
+sleep "${SL_SHOT_DELAY:-2}"
+/usr/sbin/screencapture -x "$out"
+kill "$pid" 2>/dev/null
+wait "$pid" 2>/dev/null
+echo "$out"
