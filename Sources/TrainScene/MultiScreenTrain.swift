@@ -7,6 +7,7 @@ import OverlayKit
 public enum TrainGlyph {
     public static let size = CGSize(width: 220, height: 90)
 
+    @MainActor
     public static func makeView() -> NSView {
         let view = NSView()
         view.wantsLayer = true
