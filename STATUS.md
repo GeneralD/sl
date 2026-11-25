@@ -1,34 +1,37 @@
-# STATUS — sl (updated 2026-11-25 10:55 / tick 0)
+# STATUS — sl (updated 2026-11-25 11:15 / tick 1)
 
 ## One line
 
-Phase 1: repository scaffolded; spikes queued; fleet not yet running.
+Phase 3: five squads running; first task merged; spikes A+B verified.
 
 ## Since your last message
 
-- Stack decided: Swift + SceneKit overlay, CLT-only build, custom check
-  harness (XCTest is absent from Command Line Tools)
-- Repo created: <https://github.com/GeneralD/sl> (public, MIT)
-- Answers applied: procedural+`--model` swap / public / 72 h / brew tap
+- Spike A verified on-machine: transparent overlay draws over other
+  windows and `screencapture` captures it → docs/spikes/a-overlay.md
+- Spike B verified: SCNView composites transparent into the overlay →
+  SceneKit committed as the renderer
+- 35 issues filed with blocked_by edges; 5 squads launched as `devin -p`
+  sessions (swe-2-medium, workers swe-2-flash-medium)
+- Q0 resolved: Xcode license accepted → brew/xcodebuild available
 
 ## Progress
 
-- boring 0/~40 · differentiator 0/3 · bold 0/2 · horizon 0/10
-- coverage: harness pending
+- boring 1/27 · differentiator 1/3 · bold 0/2 · horizon 0/10
+- coverage: 48.6% ratchet baseline (coverage-baseline.txt)
 
 ## Last tick
 
-- run started; scouts returned; skeleton landing
+- fleet launched; trajectory merged (#38→#13); 4 PRs open: parser, man
+  page, spike-B evidence, fieldcheck doc
 
 ## Running
 
-- golden scout (exemplar matching)
+- scene · world · cli · feel · ship squads (issue queues in pinned #1)
 
 ## Smell these (judgment queue, running on provisionals)
 
-- Q0 Xcode license unaccepted — `sudo xcodebuild -license accept` is on
-  your clipboard → provisional: stay CLT-only with the custom check
-  harness; unlocks XCTest/xcodebuild/brew if you run it
+- ~~Q0 Xcode license~~ RESOLVED — CLT lane stays canonical so all
+  squads build identically; brew verify unblocked for the tap task
 - Q1 Vendored CC0 train model as an alternate `--model` pack →
   provisional: next horizon
 
@@ -38,10 +41,10 @@ Phase 1: repository scaffolded; spikes queued; fleet not yet running.
 
 ## Recent decisions (3)
 
-- SceneKit behind `Renderer` protocol (deprecated-26 insurance)
-- CLT-only toolchain + custom check lane
+- SceneKit committed post-spike-B (was: provisional behind `Renderer`)
+- CLT pin stays canonical; Xcode toolchain available for verification
 - tap formula name `sl3d` (core `sl` is taken)
 
 ## Latest screen
 
-(first screenshot after the overlay spike lands)
+![first overlay](docs/shots/first-overlay.png)
