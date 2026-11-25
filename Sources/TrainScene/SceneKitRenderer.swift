@@ -18,6 +18,16 @@ public final class SceneKitRenderer: Renderer {
 
     private let trajectory: Trajectory
     private weak var train: SCNNode?
+    private weak var locoMaterial: SCNMaterial?
+    private weak var ambientNode: SCNNode?
+    private weak var keyNode: SCNNode?
+    private var disco: DiscoTimeline?
+
+    /// Two strobe colors the scene lights alternate between under `-d`.
+    private static let discoPalette = [
+        NSColor(calibratedRed: 1.0, green: 0.1, blue: 0.8, alpha: 1),   // magenta
+        NSColor(calibratedRed: 0.1, green: 0.9, blue: 1.0, alpha: 1),   // cyan
+    ]
 
     public let duration: TimeInterval
 
@@ -40,7 +50,9 @@ public final class SceneKitRenderer: Renderer {
         addKeyLight(to: scene)
         addCamera(to: scene, frame: frame)
 
-        let train = SCNNode(geometry: Self.placeholderGeometry())
+        let geometry = Self.placeholderGeometry()
+        locoMaterial = geometry.materials.first as? SCNMaterial
+        let train = SCNNode(geometry: geometry)
         train.name = "placeholder-loco"
         scene.rootNode.addChildNode(train)
         self.train = train
@@ -55,6 +67,7 @@ public final class SceneKitRenderer: Renderer {
         // rendersContinuously stays off: SCNView redraws on scene-graph
         // changes and render(at:) mutates node transforms every frame.
         view.rendersContinuously = false
+        disco = spec.disco ? DiscoTimeline() : nil
         return view
     }
 
@@ -68,6 +81,25 @@ public final class SceneKitRenderer: Renderer {
             CGFloat(pose.x), CGFloat(pose.y), 0)
         train.eulerAngles.y = CGFloat(t * 0.9)
         train.eulerAngles.z = CGFloat(pose.heading)
+        if let disco {
+            applyDisco(t: t, timeline: disco)
+        }
+    }
+
+    /// `-d` strobe: hue-cycled body color, lights alternating between
+    /// the two palette colors (offset half a beat so they read as
+    /// alternating), and a small beat-synced scale pulse. Timing lives
+    /// in `DiscoTimeline` — seizure-safe rates are enforced there.
+    private func applyDisco(t: TimeInterval, timeline: DiscoTimeline) {
+        let hue = timeline.hue(at: t)
+        locoMaterial?.diffuse.contents = NSColor(
+            hue: CGFloat(hue), saturation: 0.85,
+            brightness: 0.95, alpha: 1)
+        let beat = timeline.lightIndex(at: t)
+        keyNode?.light?.color = Self.discoPalette[beat]
+        ambientNode?.light?.color = Self.discoPalette[1 - beat]
+        let s = CGFloat(timeline.scale(at: t))
+        train?.scale = SCNVector3(s, s, s)
     }
 
     @discardableResult
@@ -82,6 +114,7 @@ public final class SceneKitRenderer: Renderer {
         node.light?.type = .ambient
         node.light?.intensity = 700
         scene.rootNode.addChildNode(node)
+        ambientNode = node
     }
 
     /// Directional "sun": position is irrelevant — the light travels
@@ -93,6 +126,7 @@ public final class SceneKitRenderer: Renderer {
         node.light?.intensity = 1000
         node.eulerAngles = SCNVector3(-0.5, 0.4, 0)
         scene.rootNode.addChildNode(node)
+        keyNode = node
     }
 
     /// Ortho camera in pixel space: `orthographicScale = height/2` with

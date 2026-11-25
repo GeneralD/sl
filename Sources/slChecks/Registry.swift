@@ -11,4 +11,5 @@ public enum Registry {
         + sceneKitChecks
         + trajectoryChecks
         + allDisplayChecks
+        + discoChecks
 }
