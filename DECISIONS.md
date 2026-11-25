@@ -75,4 +75,13 @@
   `SCNView` + ortho pixel-space camera + ambient/directional lights +
   placeholder primitive driven by `Trajectory`; `SL_RENDERER=placeholder`
   keeps the skeleton view for A/B debugging
+- [task-12] `--duration` needed a RunSpec field + one parser case (flag
+  table entry only — parser internals untouched); RunLoop caps the run
+  at min(--duration ?? 10s, driver.duration), watchdog = cap + 30s
+- [task-12] SIGINT contract: SIG_IGN unless -e, in which case main's
+  slot-releasing handler stands and exits ~130; freeze holds via
+  app.run() until SIGTERM; FrameDriver seam = duration +
+  onFrame(t)->Bool + render(at:) with adapters in main.swift, and the
+  audio-tail/fade-out finish sequence rides inside `OverlayDriver`'s
+  onFrame so RunLoop stays traversal-agnostic
 - [task-28] Dock hop: zone detected via `visibleFrame.minY - frame.minY` > 8 (bottom Dock only — a side Dock insets minX/maxX); the Dock's width is not public API, so the hop zone approximates it as a centered strip capped at 600pt; hop = 40px parabola + 0.15 rad pitch, skipped under `-F` flight; `--all` collects one zone per screen mapped into global lane coords
