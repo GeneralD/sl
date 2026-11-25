@@ -32,6 +32,9 @@ public final class SceneKitRenderer: Renderer {
     /// trajectory width and the node tree agree.
     private var carCount: Int = 0
     private var carScale: CGFloat = 1
+    private var screamers: ScreamerField?
+    /// `-a` panic: the loco rocks slightly while screamers pop.
+    private var rocking = false
 
     /// Two strobe colors the scene lights alternate between under `-d`.
     private static let discoPalette = [
@@ -58,9 +61,14 @@ public final class SceneKitRenderer: Renderer {
         }
         livery = Self.livery(for: spec)
         locoScale = spec.little ? Self.littleScale : 1
+        // `-G` swaps the whole node builder, not just the paint: the
+        // TGV bullet is longer and lower than the D51 silhouette, so
+        // the trajectory measures whichever one will actually render.
+        let proceduralSize = spec.tgv
+            ? ProceduralTGV.size : ProceduralLocomotive.size
         let locoSize = CGSize(
-            width: ProceduralLocomotive.size.width * locoScale,
-            height: ProceduralLocomotive.size.height * locoScale)
+            width: proceduralSize.width * locoScale,
+            height: proceduralSize.height * locoScale)
         let trainSize = loaded?.size ?? locoSize
         // Cars scale with `-l` on the procedural loco; a `--model`
         // asset is already lane-height, so its cars stay full size.
@@ -85,12 +93,10 @@ public final class SceneKitRenderer: Renderer {
         duration = trajectory.duration
     }
 
-    /// `-c` selects the red C51; `-G` takes the reserved variant slot
-    /// until the TGV gets its own model.
+    /// `-c` selects the red-edged C51 livery; `-G` swaps in the TGV
+    /// node builder in `makeView`, so it needs no livery slot.
     private static func livery(for spec: RunSpec) -> Livery {
-        if spec.c51 { return .c51 }
-        if spec.tgv { return .variant }
-        return .d51
+        spec.c51 ? .c51 : .d51
     }
 
     public func makeView(in frame: NSRect, spec: RunSpec) -> NSView {
@@ -104,6 +110,8 @@ public final class SceneKitRenderer: Renderer {
         let train: SCNNode
         if let model {
             train = model.node
+        } else if spec.tgv {
+            train = ProceduralTGV(scale: locoScale).node
         } else {
             train = ProceduralLocomotive(
                 livery: livery, scale: locoScale).node
@@ -149,6 +157,16 @@ public final class SceneKitRenderer: Renderer {
         // changes and render(at:) mutates node transforms every frame.
         view.rendersContinuously = false
         disco = spec.disco ? DiscoTimeline() : nil
+        rocking = spec.accident
+        if spec.accident {
+            // boundingBox covers the whole subtree in train-local
+            // space, so windows land correctly for the procedural
+            // loco's track-contact pivot and centered --model pivots.
+            let bounds = train.boundingBox
+            let field = ScreamerField(bounds: bounds.min, hi: bounds.max)
+            train.addChildNode(field.root)
+            screamers = field
+        }
         return view
     }
 
@@ -164,6 +182,12 @@ public final class SceneKitRenderer: Renderer {
             CGFloat(pose.x) - consistShift,
             CGFloat(pose.y) - pivotDrop, 0)
         train.eulerAngles.z = CGFloat(pose.heading)
+        if rocking {
+            screamers?.update(at: t)
+            // Slight panic roll toward the camera — small enough to
+            // read as distress, not a crash.
+            train.eulerAngles.x = CGFloat(sin(t * 2.6) * 0.045)
+        }
         // Distance traveled since enter: the trajectory is linear, so
         // `startX - pose.x` is `speed * t` — the wheelwork's clock.
         let startX = trajectory.laneWidth + trajectory.margin
