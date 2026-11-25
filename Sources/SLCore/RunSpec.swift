@@ -16,11 +16,15 @@ public struct RunSpec: Sendable {
     /// screen in global coordinates. `false` = frontmost screen only.
     public var allDisplays: Bool = false
 
+    /// `--model <path>`: a user-supplied .usdz/.scn/.dae locomotive that
+    /// replaces the procedural one. `nil` = built-in scene.
+    public var modelPath: String? = nil
+
     /// The flag table is the single source of truth for the classic `sl`
     /// surface; each feature extends it, never the parser call sites.
     public static let usage = """
     usage: sl [-acdeFGlw] [-<number-of-cars>] [-s] [-v]
-           sl --help | --version | --model <file> | --all | --freeze <seconds>
+           sl --help | --version | --model <file.usdz|scn|dae> | --all | --freeze <seconds>
     """
 
     /// First-pass skeleton parser: handles -v/--version/--help and the
@@ -33,6 +37,14 @@ public struct RunSpec: Sendable {
         if spec.versionRequested || spec.helpRequested { return spec }
         if args.contains("--all") { spec.allDisplays = true }
         var rest = args.filter { $0 != "--all" }
+        if let i = rest.firstIndex(of: "--model") {
+            guard i + 1 < rest.count else {
+                spec.parseError = "--model requires a file"
+                return spec
+            }
+            spec.modelPath = rest[i + 1]
+            rest.removeSubrange(i...i + 1)
+        }
         if let i = rest.firstIndex(of: "--freeze"), i + 1 < rest.count,
            let t = TimeInterval(rest[i + 1]) {
             spec.freezeAt = t
