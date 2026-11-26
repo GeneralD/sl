@@ -100,7 +100,9 @@ public final class ModelWheelwork {
     public func advance(by additional: Float) {
         distance += additional
         for wheel in wheels where wheel.sceneRadius > 0 {
-            let angle = distance / wheel.sceneRadius
+            // Local +x maps to world -z, so a left-rolling wheel
+            // (world +z positive) is a negative local-x rotation.
+            let angle = -distance / wheel.sceneRadius
             setRotation(wheel.node, angle)
         }
         guard driverSceneRadius > 0, crankRadius > 0 else { return }
