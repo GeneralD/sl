@@ -50,6 +50,13 @@ public final class SceneKitRenderer: Renderer {
     /// normalization scale and `-l` multiplies it, so `-d`'s pulse
     /// scales on top of this instead of replacing it.
     private var baseScale = SCNVector3(1, 1, 1)
+    /// Rolling gear on a rigged model (drivers, wheelsets, rods) —
+    /// nil when the loaded asset names no wheelwork nodes.
+    private var wheelwork: ModelWheelwork?
+    /// The pose x from the previous frame — wheel roll is the
+    /// accumulated translation, so `-w`, `--scale` and `-l` compose
+    /// for free and pausing the pose stops the wheels too.
+    private var lastPoseX: Float?
 
     /// Two strobe colors the scene lights alternate between under `-d`.
     private static let discoPalette = [
@@ -210,6 +217,12 @@ public final class SceneKitRenderer: Renderer {
         self.train = train
         baseScale = train.scale
         locoMaterials = Self.materials(of: train)
+        // Wheelwork reads the wrapper's final scale, so it must init
+        // after `locoScale` landed and the node sits in the scene.
+        if let model, model.node === train {
+            let rig = ModelWheelwork(root: train)
+            wheelwork = rig.engaged ? rig : nil
+        }
 
         let view = SCNView(frame: frame, options: nil)
         view.scene = scene
@@ -245,6 +258,11 @@ public final class SceneKitRenderer: Renderer {
             CGFloat(pose.x) - consistShift,
             CGFloat(pose.y), 0)
         train.eulerAngles.z = CGFloat(pose.heading)
+        if let lastPoseX, let wheelwork {
+            // Travel is -x, so forward distance is last - current.
+            wheelwork.advance(by: lastPoseX - Float(pose.x))
+        }
+        lastPoseX = Float(pose.x)
         if rocking {
             screamers?.update(at: t)
             // Slight panic roll toward the camera — small enough to
