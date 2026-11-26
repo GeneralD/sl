@@ -7,8 +7,8 @@ import SceneKit
 /// headlight's emissive beam cone + spot light, and a faint warm
 /// emission inside the cab. Everything is looked up by node name —
 /// the procedural loco shipped `chimney`/`headlight`/`cab` nodes, and
-/// `anchorModelLocomotiveEffects` synthesizes the first two for a
-/// loaded model, which carries neither. `scale` is the effect-size
+/// `anchorModelLocomotiveEffects` synthesizes the headlight anchor
+/// for a loaded model, which carries neither. `scale` is the effect-size
 /// factor; for model runs it is 1 because the anchors convert their
 /// local space to design units and the ancestors apply `locoScale`.
 @MainActor
@@ -30,11 +30,13 @@ public func attachLocomotiveEffects(to loco: SCNNode, scale: CGFloat = 1) {
 
 /// A loaded model (`model-loco` wrapper) carries no `chimney` or
 /// `headlight` node names, so `attachLocomotiveEffects` would find
-/// nothing. This synthesizes plain anchor nodes from the model's
-/// bounding box — chimney near the front-top, headlight on the front
-/// face's upper area (front of travel is -x; cars couple +x) — as
-/// children of the wrapper, then the caller attaches the shared
-/// effects.
+/// nothing. This synthesizes a plain headlight anchor node from the
+/// model's bounding box — on the front face's upper area (front of
+/// travel is -x; cars couple +x) — as a child of the wrapper, then
+/// the caller attaches the shared effects. Chimney smoke stays
+/// unanchored for now: the bbox fraction that aimed at the smokebox
+/// crown landed above the centered-pivot model, so puffs emerged in
+/// mid-air (user-reported; re-enable with a corrected anchor).
 ///
 /// `size` is `ModelAsset.Loaded.size` (design units, centered pivot).
 /// Each anchor's own scale folds the wrapper's normalization scale
@@ -62,9 +64,9 @@ public func anchorModelLocomotiveEffects(on loco: SCNNode, size: CGSize) {
     }
     // Fractions of the bounding box, not absolutes: the bundled loco
     // is ~2.2 design-units wide per unit of height, so x fractions of
-    // `size.width` land the chimney on the smokebox crown and the
-    // lamp on the nose face. (Logged in DECISIONS.md.)
-    anchor("chimney", -size.width * 0.25, size.height * 0.70)
+    // `size.width` land the lamp on the nose face. No chimney anchor —
+    // smoke is disabled until the anchor position is fixed. (Logged
+    // in DECISIONS.md.)
     anchor("headlight", -size.width / 2 + size.width * 0.02,
            size.height * 0.18)
 }

@@ -1,4 +1,5 @@
 import AppKit
+import OverlayKit
 import SceneKit
 import SLCore
 import SLTestKit
@@ -127,6 +128,43 @@ public let sceneKitChecks: [Check] = [
             let loco = scene.rootNode.childNode(
                 withName: "model-loco", recursively: true)
             try expect(loco != nil)
+        }
+    },
+    Check("when model cars couple the chain anchors at the loco's rear-bottom in scene units") {
+        try MainActor.assumeIsolated {
+            // laneHeight 360 doubles locoScale — the design→wrapper-local
+            // anchor conversion must hold at any lane scale; dividing by
+            // nodeScale only looked right at laneHeight == reference.
+            let spec = defaultSpec()
+            let renderer = SceneKitRenderer(
+                spec: spec, stripWidth: 1000, laneHeight: 360)
+            guard let view = renderer.makeView(
+                in: NSRect(x: 0, y: 0, width: 1000, height: 360),
+                spec: spec) as? SCNView,
+                  let loco = view.scene?.rootNode.childNode(
+                      withName: "model-loco", recursively: true),
+                  let chain = loco.childNode(
+                      withName: "car-chain", recursively: true)
+            else {
+                try expect(false, "model loco + car chain missing")
+                return
+            }
+            guard let url = modelAssetURL(named: "loco.usdz"),
+                  let loaded = try? ModelAsset.loadTrain(
+                      at: url.path,
+                      targetHeight: ModelAsset.locomotiveDesignHeight)
+            else {
+                try expect(false, "bundled loco missing")
+                return
+            }
+            let locoScale = 360 / OverlayGeometry.referenceLaneHeight
+            let s = CGFloat(loco.scale.x)
+            let wantX = loaded.size.width / 2 * locoScale
+            let wantY = -loaded.size.height / 2 * locoScale
+            try expect(abs(chain.position.x * s - wantX) < 1,
+                       "chain x \(chain.position.x * s) vs \(wantX)")
+            try expect(abs(chain.position.y * s - wantY) < 1,
+                       "chain y \(chain.position.y * s) vs \(wantY)")
         }
     },
     Check("when stepped the SceneKit renderer moves the train right-to-left and reports finished") {

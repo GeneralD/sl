@@ -191,13 +191,19 @@ public final class SceneKitRenderer: Renderer {
         // chain's rear anchor always comes from the normalized size.
         if carCount > 0, !modelCars.isEmpty, let model {
             let nodeScale = CGFloat(train.scale.x)
+            // Design -> wrapper-local: the wrapper's normalization
+            // scale alone (nodeScale/locoScale), not nodeScale —
+            // dividing by nodeScale shrank the anchor by locoScale,
+            // tucking the chain toward the loco's center and lifting
+            // the cars off the rail.
+            let norm = nodeScale / locoScale
             let chain = ModelConsist.chain(cars: modelCars)
             chain.scale = SCNVector3(
                 carScale / nodeScale, carScale / nodeScale,
                 carScale / nodeScale)
             chain.position = SCNVector3(
-                Float(model.size.width / 2 / nodeScale),
-                Float(-model.size.height / 2 / nodeScale), 0)
+                Float(model.size.width / 2 / norm),
+                Float(-model.size.height / 2 / norm), 0)
             train.addChildNode(chain)
         }
         scene.rootNode.addChildNode(train)

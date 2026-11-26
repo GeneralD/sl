@@ -169,7 +169,7 @@ public let smokeHeadlightChecks: [Check] = [
             attachLocomotiveEffects(to: bare)
         }
     },
-    Check("when the SceneKit renderer builds its view chimney smoke and headlight beam ride along") {
+    Check("when the SceneKit renderer builds its view the headlight beam rides along but smoke stays off") {
         try MainActor.assumeIsolated {
             let renderer = SceneKitRenderer(
                 spec: defaultSpec(), stripWidth: 1000)
@@ -182,8 +182,10 @@ public let smokeHeadlightChecks: [Check] = [
             let loco = scene.rootNode.childNode(
                 withName: "model-loco", recursively: true)
             try expect(loco != nil, "no locomotive node in scene")
-            try expect(find("smoke", in: loco!) != nil,
-                       "smoke missing from rendered loco")
+            // Smoke is disabled on the bundled model until the chimney
+            // anchor is fixed — no chimney node means no emitter.
+            try expect(find("smoke", in: loco!) == nil,
+                       "smoke must stay unanchored on the model")
             try expect(find("headlight-beam", in: loco!) != nil,
                        "headlight beam missing from rendered loco")
         }
