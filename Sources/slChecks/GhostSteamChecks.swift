@@ -12,6 +12,18 @@ private func defaultSpec() -> RunSpec {
     }
 }
 
+/// Drops a bare `smoke` anchor into the train node — the ghost-steam
+/// gate only fires when the loco carries one (the bundled model has
+/// none while chimney smoke stays disabled).
+@MainActor
+private func addSmokeAnchor(to scene: SCNScene) {
+    guard let train = scene.rootNode.childNode(
+        withName: "model-loco", recursively: true) else { return }
+    let smoke = SCNNode()
+    smoke.name = "smoke"
+    train.addChildNode(smoke)
+}
+
 private func keyframeValues(_ controller: SCNParticlePropertyController?)
     -> [Double] {
     guard let animation = controller?.animation as? CAKeyframeAnimation,
@@ -47,8 +59,12 @@ public let ghostSteamChecks: [Check] = [
         try MainActor.assumeIsolated {
             let spec = defaultSpec()
             let renderer = SceneKitRenderer(spec: spec, stripWidth: 1000)
-            _ = renderer.makeView(
-                in: NSRect(x: 0, y: 0, width: 1000, height: 180), spec: spec)
+            guard let scene = (renderer.makeView(
+                in: NSRect(x: 0, y: 0, width: 1000, height: 180),
+                spec: spec) as? SCNView)?.scene else {
+                throw CheckFailure(message: "renderer produced no scene")
+            }
+            addSmokeAnchor(to: scene)
             // Mid-run there is nothing to hold for.
             try expectEqual(renderer.postExitRemaining(at: 0), 0)
             try expectEqual(renderer.postExitRemaining(at: 4), 0)
@@ -76,6 +92,7 @@ public let ghostSteamChecks: [Check] = [
                 spec: spec) as? SCNView, let scene = view.scene else {
                 throw CheckFailure(message: "renderer produced no scene")
             }
+            addSmokeAnchor(to: scene)
             // The exit frame (duration 8): the emitter drops and
             // still fires — the trail is being born.
             renderer.step(to: 8)
@@ -94,6 +111,25 @@ public let ghostSteamChecks: [Check] = [
             // puffs' own decay remains.
             renderer.step(to: 8.5)
             try expectEqual(system.birthRate, 0)
+        }
+    },
+    Check("when the loco carries no smoke anchor no ghost steam drops and the hold is zero") {
+        try MainActor.assumeIsolated {
+            let spec = defaultSpec()
+            let renderer = SceneKitRenderer(spec: spec, stripWidth: 1000)
+            guard let view = renderer.makeView(
+                in: NSRect(x: 0, y: 0, width: 1000, height: 180),
+                spec: spec) as? SCNView, let scene = view.scene else {
+                throw CheckFailure(message: "renderer produced no scene")
+            }
+            // Bundled model has no chimney smoke — so nothing may
+            // spawn a trail out of thin air after the exit.
+            try expectEqual(renderer.postExitHold, 0)
+            renderer.step(to: 8)
+            try expect(
+                scene.rootNode.childNode(
+                    withName: "ghost-steam", recursively: true) == nil,
+                "ghost steam dropped with no smoke source")
         }
     },
     Check("when a renderer has no post-exit scene the hold defaults to zero") {
@@ -119,6 +155,7 @@ private func snapshotGrid(at t: TimeInterval) throws -> [UInt32] {
         spec: spec) as? SCNView else {
         throw CheckFailure(message: "no view")
     }
+    if let scene = view.scene { addSmokeAnchor(to: scene) }
     renderer.render(at: t)
     guard let tiff = view.snapshot().tiffRepresentation,
           let rep = NSBitmapImageRep(data: tiff) else {
