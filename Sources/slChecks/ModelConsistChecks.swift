@@ -284,8 +284,8 @@ public let modelConsistChecks: [Check] = [
     },
     Check("when a --model consist exits the ghost steam emitter still drops") {
         try MainActor.assumeIsolated {
-            // The model loco's synthesized "smoke" anchor gives the
-            // emitter a chimney origin; either way it must drop.
+            // With no chimney anchor the emitter falls back to the
+            // train origin, clamped to the lane; either way it drops.
             let runSpec = spec(["sl", "--model", "loco", "-1"])
             let renderer = SceneKitRenderer(spec: runSpec, stripWidth: 1000)
             let scene = (renderer.makeView(
