@@ -221,25 +221,40 @@ private func smokePuff() -> NSImage {
 
 // MARK: - Headlight
 
-/// The visible beam: a warm additive cone reaching forward (-x) from
-/// the lamp. SceneKit lights need geometry to land on and the lane is
-/// transparent, so the cone itself is the "beam".
+/// The visible beam: a warm translucent cone reaching forward (-x)
+/// from the lamp. SceneKit lights need geometry to land on and the
+/// lane is transparent, so the cone itself is the "beam". Alpha
+/// blend, never additive: `.add` ignores alpha and renders an opaque
+/// yellow wedge. The lengthwise fade texture softens the cone's hard
+/// silhouette into a light shaft.
 private func headlightBeam(scale s: CGFloat) -> SCNNode {
-    let length = 150 * s
+    let length = 140 * s
     let beam = SCNNode()
     beam.name = "headlight-beam"
     beam.geometry = SCNCone(
-        topRadius: 20 * s, bottomRadius: 4 * s, height: length)
+        topRadius: 12 * s, bottomRadius: 3 * s, height: length)
     let material = SCNMaterial()
     material.lightingModel = .constant
-    material.diffuse.contents = NSColor(
-        calibratedRed: 1, green: 0.85, blue: 0.55, alpha: 1)
-    material.transparency = 0.22
-    material.blendMode = .add
+    material.diffuse.contents = beamFade()
+    material.transparency = 0.55
+    material.writesToDepthBuffer = false
     beam.geometry?.materials = [material]
     beam.eulerAngles.z = .pi / 2 // cone +y axis -> -x (forward)
     beam.position = SCNVector3(Float(-length / 2), 0, 0)
     return beam
+}
+
+/// Warm yellow fading along the beam length — dense at the lamp,
+/// gone at the far end. v runs bottom→top of the cone (far end).
+private func beamFade() -> NSImage {
+    NSImage(size: NSSize(width: 8, height: 64), flipped: false) { rect in
+        let gradient = NSGradient(colors: [
+            NSColor(calibratedRed: 1, green: 0.85, blue: 0.55, alpha: 0.75),
+            NSColor(calibratedRed: 1, green: 0.85, blue: 0.55, alpha: 0),
+        ])
+        gradient?.draw(in: rect, angle: 90)
+        return true
+    }
 }
 
 /// Real illumination for whatever the beam crosses: a spot on the
