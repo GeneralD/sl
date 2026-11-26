@@ -278,15 +278,17 @@ public final class SceneKitRenderer: Renderer {
     }
 
     /// First finished frame: drop a ghost-steam emitter where the
-    /// train was — the chimney smoke's world position when the loco
-    /// carries one, the train origin otherwise — and stamp the exit
-    /// time the post-exit hold counts down from.
+    /// chimney smoke last was, and stamp the exit time the post-exit
+    /// hold counts down from. No `smoke` node → no trail: ghost steam
+    /// is the last chimney puffs lingering, so a loco without a smoke
+    /// anchor must not spawn fog out of thin air at the lane's edge.
     private func dropGhostSteam(at t: TimeInterval) {
         if exitedAt == nil { exitedAt = t }
-        guard ghost == nil, let scene else { return }
-        var origin = train?
-            .childNode(withName: "smoke", recursively: true)?
-            .worldPosition ?? train?.worldPosition ?? SCNVector3Zero
+        guard ghost == nil, let scene,
+              let smoke = train?.childNode(
+                  withName: "smoke", recursively: true)
+        else { return }
+        var origin = smoke.worldPosition
         // `finished` flips only after the whole consist is past the
         // left edge — the raw origin is already offscreen and its
         // puffs would die before drifting into view. Slide the
@@ -339,12 +341,17 @@ public final class SceneKitRenderer: Renderer {
     }
 
     /// The ghost-steam hold: the run loop keeps the window up this
-    /// long past exit so the trail dissipates before the fade.
-    public var postExitHold: TimeInterval { Self.ghostSteamDuration }
+    /// long past exit so the trail dissipates before the fade. A loco
+    /// with no smoke anchor drops no trail, so there is nothing to
+    /// hold for — hand the fade straight back.
+    public var postExitHold: TimeInterval {
+        train?.childNode(withName: "smoke", recursively: true) != nil
+            ? Self.ghostSteamDuration : 0
+    }
 
     public func postExitRemaining(at t: TimeInterval) -> TimeInterval {
         guard let exitedAt else { return 0 }
-        return max(0, Self.ghostSteamDuration - (t - exitedAt))
+        return max(0, postExitHold - (t - exitedAt))
     }
 
     private func addAmbientLight(to scene: SCNScene) {
