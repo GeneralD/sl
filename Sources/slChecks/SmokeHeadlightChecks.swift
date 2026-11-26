@@ -182,10 +182,10 @@ public let smokeHeadlightChecks: [Check] = [
             let loco = scene.rootNode.childNode(
                 withName: "model-loco", recursively: true)
             try expect(loco != nil, "no locomotive node in scene")
-            // Smoke is disabled on the bundled model until the chimney
-            // anchor is fixed — no chimney node means no emitter.
-            try expect(find("smoke", in: loco!) == nil,
-                       "smoke must stay unanchored on the model")
+            // Anchors are synthesized from the bbox: the chimney
+            // emitter and headlight beam must both ride the loco.
+            try expect(find("smoke", in: loco!) != nil,
+                       "smoke emitter missing from rendered loco")
             try expect(find("headlight-beam", in: loco!) != nil,
                        "headlight beam missing from rendered loco")
         }

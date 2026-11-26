@@ -284,19 +284,13 @@ public let modelConsistChecks: [Check] = [
     },
     Check("when a --model consist exits the ghost steam emitter still drops") {
         try MainActor.assumeIsolated {
-            // The emitter only drops while a smoke anchor exists, so
-            // stand one in for the bundled model (chimney disabled).
+            // The bundled loco carries a real chimney smoke anchor,
+            // so the ghost-steam gate opens on its own.
             let runSpec = spec(["sl", "--model", "loco", "-1"])
             let renderer = SceneKitRenderer(spec: runSpec, stripWidth: 1000)
             let scene = (renderer.makeView(
                 in: NSRect(x: 0, y: 0, width: 1000, height: 180),
                 spec: runSpec) as? SCNView)?.scene
-            if let train = scene?.rootNode.childNode(
-                withName: "model-loco", recursively: true) {
-                let smoke = SCNNode()
-                smoke.name = "smoke"
-                train.addChildNode(smoke)
-            }
             let running = renderer.step(to: 9)
             let ghost = scene?.rootNode.childNode(
                 withName: "ghost-steam", recursively: true)

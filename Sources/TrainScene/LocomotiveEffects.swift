@@ -30,13 +30,9 @@ public func attachLocomotiveEffects(to loco: SCNNode, scale: CGFloat = 1) {
 
 /// A loaded model (`model-loco` wrapper) carries no `chimney` or
 /// `headlight` node names, so `attachLocomotiveEffects` would find
-/// nothing. This synthesizes a plain headlight anchor node from the
-/// model's bounding box — on the front face's upper area (front of
-/// travel is -x; cars couple +x) — as a child of the wrapper, then
-/// the caller attaches the shared effects. Chimney smoke stays
-/// unanchored for now: the bbox fraction that aimed at the smokebox
-/// crown landed above the centered-pivot model, so puffs emerged in
-/// mid-air (user-reported; re-enable with a corrected anchor).
+/// nothing. This synthesizes anchor nodes from the model's bounding
+/// box — front of travel is -x; cars couple +x — as children of the
+/// wrapper, then the caller attaches the shared effects.
 ///
 /// `size` is `ModelAsset.Loaded.size` (design units, centered pivot).
 /// Each anchor's own scale folds the wrapper's normalization scale
@@ -64,11 +60,14 @@ public func anchorModelLocomotiveEffects(on loco: SCNNode, size: CGSize) {
     }
     // Fractions of the bounding box, not absolutes: the bundled loco
     // is ~2.2 design-units wide per unit of height, so x fractions of
-    // `size.width` land the lamp on the nose face. No chimney anchor —
-    // smoke is disabled until the anchor position is fixed. (Logged
-    // in DECISIONS.md.)
+    // `size.width` land the lamp on the nose face. The chimney sits
+    // ~17% of the length behind the nose with its rim just under the
+    // box top — the emitter's built-in +19 rise reaches the rim from
+    // the anchor.
     anchor("headlight", -size.width / 2 + size.width * 0.02,
            size.height * 0.18)
+    anchor("chimney", -size.width / 2 + size.width * 0.17,
+           size.height * 0.46 - 19)
 }
 
 // MARK: - Chimney smoke
