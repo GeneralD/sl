@@ -12,16 +12,13 @@ private func defaultSpec() -> RunSpec {
     }
 }
 
-/// Drops a bare `smoke` anchor into the train node — the ghost-steam
-/// gate only fires when the loco carries one (the bundled model has
-/// none while chimney smoke stays disabled).
+/// Removes the loco's `smoke` anchor so the ghost-steam gate can be
+/// exercised in its closed state — the bundled model carries a real
+/// chimney emitter now.
 @MainActor
-private func addSmokeAnchor(to scene: SCNScene) {
-    guard let train = scene.rootNode.childNode(
-        withName: "model-loco", recursively: true) else { return }
-    let smoke = SCNNode()
-    smoke.name = "smoke"
-    train.addChildNode(smoke)
+private func removeSmokeAnchor(from scene: SCNScene) {
+    scene.rootNode.childNode(
+        withName: "smoke", recursively: true)?.removeFromParentNode()
 }
 
 private func keyframeValues(_ controller: SCNParticlePropertyController?)
@@ -64,7 +61,6 @@ public let ghostSteamChecks: [Check] = [
                 spec: spec) as? SCNView)?.scene else {
                 throw CheckFailure(message: "renderer produced no scene")
             }
-            addSmokeAnchor(to: scene)
             // Mid-run there is nothing to hold for.
             try expectEqual(renderer.postExitRemaining(at: 0), 0)
             try expectEqual(renderer.postExitRemaining(at: 4), 0)
@@ -92,7 +88,6 @@ public let ghostSteamChecks: [Check] = [
                 spec: spec) as? SCNView, let scene = view.scene else {
                 throw CheckFailure(message: "renderer produced no scene")
             }
-            addSmokeAnchor(to: scene)
             // The exit frame (duration 8): the emitter drops and
             // still fires — the trail is being born.
             renderer.step(to: 8)
@@ -122,8 +117,9 @@ public let ghostSteamChecks: [Check] = [
                 spec: spec) as? SCNView, let scene = view.scene else {
                 throw CheckFailure(message: "renderer produced no scene")
             }
-            // Bundled model has no chimney smoke — so nothing may
+            // Strip the bundled model's chimney emitter — nothing may
             // spawn a trail out of thin air after the exit.
+            removeSmokeAnchor(from: scene)
             try expectEqual(renderer.postExitHold, 0)
             renderer.step(to: 8)
             try expect(
@@ -155,7 +151,6 @@ private func snapshotGrid(at t: TimeInterval) throws -> [UInt32] {
         spec: spec) as? SCNView else {
         throw CheckFailure(message: "no view")
     }
-    if let scene = view.scene { addSmokeAnchor(to: scene) }
     renderer.render(at: t)
     guard let tiff = view.snapshot().tiffRepresentation,
           let rep = NSBitmapImageRep(data: tiff) else {
