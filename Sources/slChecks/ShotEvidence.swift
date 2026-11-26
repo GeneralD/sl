@@ -309,6 +309,9 @@ public enum ShotEvidence {
         view.frame = frame
         view.wantsLayer = true
         view.layer?.contentsScale = 2
+        // Two frames: the wheelwork rig rolls on pose deltas, so a
+        // lone render would leave wheels/rods untouched.
+        renderer.render(at: freezeAt - 0.1)
         renderer.render(at: freezeAt)
         guard let tiff = view.snapshot().tiffRepresentation else {
             return nil

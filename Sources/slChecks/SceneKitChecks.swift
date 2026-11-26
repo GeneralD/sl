@@ -167,6 +167,68 @@ public let sceneKitChecks: [Check] = [
                        "chain y \(chain.position.y * s) vs \(wantY)")
         }
     },
+    Check("when the consist rolls the wheelwork spins wheels and drives rods only") {
+        try MainActor.assumeIsolated {
+            let spec = defaultSpec()
+            let renderer = SceneKitRenderer(spec: spec, stripWidth: 1000)
+            guard let scene = sceneKitScene(renderer),
+                  let loco = scene.rootNode.childNode(
+                      withName: "model-loco", recursively: true)
+            else {
+                try expect(false, "no model loco in scene")
+                return
+            }
+            var before: [ObjectIdentifier: (String, SCNVector3, SCNVector4)] = [:]
+            loco.enumerateChildNodes { node, _ in
+                before[ObjectIdentifier(node)] = (
+                    node.name ?? "<unnamed>", node.position, node.rotation)
+            }
+            // Two poses apart so the rig accumulates real distance.
+            renderer.render(at: 3)
+            renderer.render(at: 4)
+            let animated: Set<String> = [
+                "driver_1", "driver_2", "driver_3",
+                "wheelset_1", "wheelset_2", "wheelset_3",
+                "coupling_rod_L", "coupling_rod_R",
+                "crosshead_L", "crosshead_R",
+                "connecting_rod_L", "connecting_rod_R",
+            ]
+            var moved: [String] = []
+            loco.enumerateChildNodes { node, _ in
+                guard let b = before[ObjectIdentifier(node)] else { return }
+                if node.position.x != b.1.x || node.position.y != b.1.y
+                    || node.position.z != b.1.z
+                    || node.rotation.w != b.2.w || node.rotation.x != b.2.x {
+                    moved.append(b.0)
+                }
+            }
+            let stray = moved.filter { !animated.contains($0) }
+            try expect(stray.isEmpty,
+                       "unexpected nodes moved: \(stray)")
+            let missing = animated.filter { !moved.contains($0) }
+            try expect(missing.isEmpty,
+                       "rigged nodes stayed static: \(missing)")
+            // The coupling rod orbits at the crank radius: its pivot
+            // distance to the driven axle stays constant.
+            guard let axle = loco.childNode(
+                      withName: "driver_2", recursively: true),
+                  let rod = loco.childNode(
+                      withName: "coupling_rod_L", recursively: true)
+            else { return }
+            let dy = rod.position.y - axle.position.y
+            let dz = rod.position.z - axle.position.z
+            let r = sqrt(dy * dy + dz * dz)
+            try expect(r > 0.2 && r < 0.5,
+                       "crank radius drifted: \(r)")
+            // Connecting rod stays nearly horizontal — long rods only
+            // tilt a few degrees off the crosshead pin.
+            if let con = loco.childNode(
+                withName: "connecting_rod_L", recursively: true) {
+                try expect(abs(con.rotation.w) < 0.3,
+                           "connecting rod tilted \(con.rotation.w) rad")
+            }
+        }
+    },
     Check("when stepped the SceneKit renderer moves the train right-to-left and reports finished") {
         try MainActor.assumeIsolated {
             let renderer = SceneKitRenderer(spec: defaultSpec(), stripWidth: 1000)
