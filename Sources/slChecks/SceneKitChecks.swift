@@ -227,6 +227,15 @@ public let sceneKitChecks: [Check] = [
                 try expect(abs(con.rotation.w) < 0.3,
                            "connecting rod tilted \(con.rotation.w) rad")
             }
+            // Front faces travel (-x): cylinders/crossheads sit ahead
+            // of the driven axle. A +x crosshead means the model is
+            // running backwards (the bundled assets are authored
+            // facing +x and yaw π at load).
+            if let cross = loco.childNode(
+                    withName: "crosshead_L", recursively: true) {
+                try expect(cross.worldPosition.x < axle.worldPosition.x,
+                           "loco faces +x — cylinders trail the drivers")
+            }
         }
     },
     Check("when stepped the SceneKit renderer moves the train right-to-left and reports finished") {

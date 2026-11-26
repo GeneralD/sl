@@ -8,11 +8,12 @@ import SceneKit
 /// part is driven by writing its transform directly.
 ///
 /// Coordinate note: inside `steam_locomotive` local space the axle
-/// axis is +x, the longitudinal axis is y (mapped to world −x, so −y
-/// points toward the front of travel) and z is up. All kinematics
-/// below are derived in that space. The export's rest pose puts the
-/// left crank at −45° and the right at −135° (quartered, right leads),
-/// which pins the crank radius: |rod.pivot − driver2.axle| = r_c·√2/2.
+/// axis is +x (mapped to world +z after the model-content yaw), the
+/// longitudinal axis is y (mapped to world +x, so −y points toward
+/// the front of travel) and z is up. All kinematics below are
+/// derived in that space. The export's rest pose quarters the cranks
+/// 90° apart (right leads), which pins the crank radius:
+/// |rod.pivot − driver2.axle| = r_c·√2/2.
 ///
 /// `advance(distance:)` consumes distance in scene units, so the wheels
 /// always roll exactly as fast as the train translates — `--scale`,
@@ -72,7 +73,9 @@ public final class ModelWheelwork {
                   let conrod = node("connecting_rod_\(side)")
             else { continue }
             // Crank radius + rest angle from the rod pivot's offset to
-            // the driven axle, in the loco's y-z plane.
+            // the driven axle, in the loco's y-z plane. Local y maps
+            // to world +x and z to world +y, so the world crank angle
+            // is atan2(dz, dy).
             let dy = Float(rod.position.y - driverCenter.y)
             let dz = Float(rod.position.z - driverCenter.z)
             let r = sqrt(dy * dy + dz * dz)
@@ -86,7 +89,7 @@ public final class ModelWheelwork {
                     rod.position.x - head.position.x,
                     rod.position.y - head.position.y,
                     rod.position.z - head.position.z),
-                restAngle: atan2(dz, -dy)))
+                restAngle: atan2(dz, dy)))
         }
     }
 
@@ -100,9 +103,9 @@ public final class ModelWheelwork {
     public func advance(by additional: Float) {
         distance += additional
         for wheel in wheels where wheel.sceneRadius > 0 {
-            // Local +x maps to world -z, so a left-rolling wheel
-            // (world +z positive) is a negative local-x rotation.
-            let angle = -distance / wheel.sceneRadius
+            // Local +x maps to world +z, so a left-rolling wheel
+            // (world +z positive) is a positive local-x rotation.
+            let angle = distance / wheel.sceneRadius
             setRotation(wheel.node, angle)
         }
         guard driverSceneRadius > 0, crankRadius > 0 else { return }
@@ -117,14 +120,14 @@ public final class ModelWheelwork {
             // traces the same orbit; the rod itself never rotates.
             sides[i].couplingRod.position = SCNVector3(
                 sides[i].restRodPosition.x,
-                sides[i].restRodPosition.y - CGFloat(dc),
+                sides[i].restRodPosition.y + CGFloat(dc),
                 sides[i].restRodPosition.z + CGFloat(ds))
             // Crosshead slides longitudinally with the crank's x
             // projection (long-rod approximation of the slide-bar
-            // arc); local +y maps to world -x, so the sign flips.
+            // arc); local +y maps to world +x.
             sides[i].crosshead.position = SCNVector3(
                 sides[i].restCrossPosition.x,
-                sides[i].restCrossPosition.y - CGFloat(dc),
+                sides[i].restCrossPosition.y + CGFloat(dc),
                 sides[i].restCrossPosition.z)
             // Connecting rod: rear end rides the crosshead pin, front
             // end tracks the crank pin — aim it in the y-z plane. The
@@ -132,7 +135,7 @@ public final class ModelWheelwork {
             // the axle centerline.
             let pin = SCNVector3(
                 sides[i].restRodPosition.x,
-                driverCenter.y - CGFloat(c),
+                driverCenter.y + CGFloat(c),
                 driverCenter.z + CGFloat(s))
             let headPos = sides[i].crosshead.position
             let v = SCNVector3(

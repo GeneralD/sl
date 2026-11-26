@@ -122,6 +122,12 @@ public enum ModelAsset {
         scene.rootNode.childNodes.forEach { content.addChildNode($0) }
         content.position = SCNVector3(
             -(minX + maxX) / 2, -(minY + maxY) / 2, -(minZ + maxZ) / 2)
+        // Bundled assets are authored facing +x (smokebox toward the
+        // cars); sl's forward is -x, so the content yaws half a turn
+        // about the vertical axis — the centering offset puts the box
+        // center on this node, so the model spins in place. Custom
+        // --model files follow the same authored-facing-+x contract.
+        content.eulerAngles.y = .pi
         let wrapper = SCNNode()
         wrapper.name = "model-loco"
         wrapper.scale = SCNVector3(scale, scale, scale)
