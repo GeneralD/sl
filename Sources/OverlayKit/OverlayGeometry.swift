@@ -19,6 +19,31 @@ public enum OverlayGeometry {
         height * laneFraction
     }
 
+    /// The camera elevation's sine (900/1500 in
+    /// `SceneKitRenderer.addCamera`) — the `--angle` diagonal drifts
+    /// vertically across the strip by `width × slope × tan(azimuth)`.
+    public static let cameraTiltSlope: CGFloat = 0.6
+
+    /// How far the `--angle` diagonal drifts vertically across a strip
+    /// `stripWidth` points wide, in world units (== screen points at
+    /// the renderer's 1:1 ortho scale).
+    public static func diagonalRise(stripWidth: CGFloat,
+                                    viewAngle: Double) -> CGFloat {
+        stripWidth * cameraTiltSlope * tan(viewAngle * .pi / 180)
+    }
+
+    /// The lane window's height: the strip grown upward so the
+    /// `--angle` diagonal path fits, capped at the screen's own
+    /// height. `viewAngle` 0 returns the plain strip height.
+    public static func viewHeight(laneHeight: CGFloat,
+                                  stripWidth: CGFloat,
+                                  viewAngle: Double,
+                                  screenHeight: CGFloat) -> CGFloat {
+        min(laneHeight + diagonalRise(
+                stripWidth: stripWidth, viewAngle: viewAngle),
+            screenHeight)
+    }
+
     /// The lane a train crosses: a strip along the bottom of `screen`,
     /// spanning the frame's full width.
     public static func bottomStrip(on screen: NSScreen, height: CGFloat) -> NSRect {

@@ -110,6 +110,29 @@ public let sceneKitChecks: [Check] = [
                        "camera rolled: \(camNode.eulerAngles)")
         }
     },
+    Check("when the frame is taller than the lane the camera still aims at the lane's centre") {
+        try MainActor.assumeIsolated {
+            // The --angle window grows above the lane; the camera must
+            // keep aiming at the lane's own centre so the diagonal's
+            // midpoint lands mid-window, and orthoScale tracks the
+            // taller frame (1:1 world↔point mapping).
+            let renderer = SceneKitRenderer(spec: defaultSpec(), stripWidth: 1000)
+            guard let scene = (renderer.makeView(
+                in: NSRect(x: 0, y: 0, width: 1000, height: 500),
+                spec: defaultSpec()) as? SCNView)?.scene else {
+                try expect(false, "renderer produced no scene")
+                return
+            }
+            guard let camNode = scene.rootNode.childNode(
+                withName: "camera", recursively: false),
+                  let camera = camNode.camera else {
+                try expect(false, "scene has no camera node")
+                return
+            }
+            try expectEqual(camNode.position.y, 990)
+            try expectEqual(camera.orthographicScale, 250)
+        }
+    },
     Check("when asked for its view the SceneKit renderer lights the scene with ambient and directional lights") {
         try MainActor.assumeIsolated {
             let renderer = SceneKitRenderer(spec: defaultSpec(), stripWidth: 1000)

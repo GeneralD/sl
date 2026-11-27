@@ -250,9 +250,19 @@ let code = MainActor.assumeIsolated { () -> Int32 in
         let renderer = RendererFactory.make(
             spec: spec, stripWidth: lane.width, model: model,
             dock: dockZones, laneHeight: laneHeight)
-        let window = OverlayWindow(frame: lane)
+        // `--angle` sends the consist diagonally up the screen: the
+        // window grows upward by the path's drift so the train stays
+        // inside the frame, capped at the screen's own height.
+        let windowHeight = OverlayGeometry.viewHeight(
+            laneHeight: laneHeight, stripWidth: lane.width,
+            viewAngle: spec.viewAngle,
+            screenHeight: screens.first?.frame.height ?? laneHeight)
+        let window = OverlayWindow(frame: NSRect(
+            x: lane.minX, y: lane.minY,
+            width: lane.width, height: windowHeight))
         window.contentView = renderer.makeView(
-            in: NSRect(origin: .zero, size: lane.size), spec: spec)
+            in: NSRect(origin: .zero, size: window.frame.size),
+            spec: spec)
         window.orderFrontRegardless()
         window.setStealth(spec.stealth)
         ui.windows.append(window)
