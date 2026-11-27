@@ -429,9 +429,9 @@ public let sceneKitChecks: [Check] = [
             try expect(washed > 0, "no texture atlases resprayed")
         }
     },
-    Check("when --color black applies it goes matte black with gold accent fittings") {
+    Check("when the default livery applies it goes matte black with gold accent fittings") {
         try MainActor.assumeIsolated {
-            let liverySpec = spec(["sl", "--color", "black"])
+            let liverySpec = spec(["sl"])
             let renderer = SceneKitRenderer(
                 spec: liverySpec, stripWidth: 1000)
             guard let scene = sceneKitScene(renderer, spec: liverySpec)
@@ -484,11 +484,13 @@ public let sceneKitChecks: [Check] = [
                        "no studio environment for IBL sheen")
         }
     },
-    Check("when --color is absent the consist keeps its factory finish") {
+    Check("when --color factory applies the consist keeps its as-built finish") {
         try MainActor.assumeIsolated {
+            let factorySpec = spec(["sl", "--color", "factory"])
             let renderer = SceneKitRenderer(
-                spec: defaultSpec(), stripWidth: 1000)
-            guard let scene = sceneKitScene(renderer) else {
+                spec: factorySpec, stripWidth: 1000)
+            guard let scene = sceneKitScene(renderer, spec: factorySpec)
+            else {
                 try expect(false, "renderer produced no scene")
                 return
             }
