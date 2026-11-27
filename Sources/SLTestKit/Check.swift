@@ -32,6 +32,11 @@ public enum CheckRunner {
     public static func run(_ checks: [Check]) -> Int {
         var failures = 0
         for (i, check) in checks.enumerated() {
+            // Progress heartbeat on stderr: a crash mid-suite loses
+            // buffered stdout TAP lines entirely, but this line shows
+            // exactly which check was running when it died.
+            FileHandle.standardError.write(
+                Data("… \(i + 1)/\(checks.count) \(check.name)\n".utf8))
             do {
                 try check.body()
                 print("ok \(i + 1) - \(check.name)")
