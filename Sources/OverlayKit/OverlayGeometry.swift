@@ -96,10 +96,10 @@ public enum OverlayGeometry {
     /// yields a window — automation, remote shells — the keyboard-
     /// focus screen is the final answer.
     public static func launchScreen() -> NSScreen? {
-        launchPids
+        launchPids()
             .lazy
             .compactMap(frontmostWindowFrame(ofAppPid:))
-            .compactMap(screen(holding:))
+            .compactMap(screen(holdingQuartzFrame:))
             .first ?? frontmostScreen()
     }
 
@@ -107,16 +107,24 @@ public enum OverlayGeometry {
     /// the nearest GUI-app ancestor of this process, the launch
     /// context's `__CFBundleIdentifier` (inherited through tmux/zellij
     /// servers), the tmux client's GUI ancestor, the TERM_PROGRAM-
-    /// declared app, and the frontmost application.
-    private static var launchPids: [pid_t] {
-        launchPidCandidates.reduce(into: [pid_t]()) { pids, pid in
-            if !pids.contains(pid) { pids.append(pid) }
-        }
+    /// declared app, and the frontmost application. `environment`
+    /// defaults to the process env — slChecks pins the candidate arms
+    /// with synthetic envs (CI has no Ghostty/zellij to resolve
+    /// organically).
+    public static func launchPids(
+        environment env: [String: String] = ProcessInfo.processInfo
+            .environment) -> [pid_t]
+    {
+        launchPidCandidates(environment: env)
+            .reduce(into: [pid_t]()) { pids, pid in
+                if !pids.contains(pid) { pids.append(pid) }
+            }
     }
 
-    private static var launchPidCandidates: [pid_t] {
-        let env = ProcessInfo.processInfo.environment
-        return [
+    private static func launchPidCandidates(
+        environment env: [String: String]) -> [pid_t]
+    {
+        [
             guiAncestor(of: getppid()),
             env["__CFBundleIdentifier"].flatMap(runningPid(ofBundleId:)),
             env["TMUX"] == nil ? nil : tmuxClientPid().flatMap(guiAncestor),
@@ -141,8 +149,9 @@ public enum OverlayGeometry {
         "zed": "dev.zed.Zed",
     ]
 
-    /// The PID of a running app for `bundleId`, if one exists.
-    private static func runningPid(ofBundleId bundleId: String) -> pid_t? {
+    /// The PID of a running app for `bundleId`, if one exists —
+    /// exposed for slChecks like the other pure seams.
+    public static func runningPid(ofBundleId bundleId: String) -> pid_t? {
         NSRunningApplication
             .runningApplications(withBundleIdentifier: bundleId)
             .first?.processIdentifier
@@ -151,7 +160,7 @@ public enum OverlayGeometry {
     /// The nearest GUI-app ancestor of `pid` — the terminal — or nil
     /// when the chain reaches launchd without one (remote or
     /// daemonized shells).
-    private static func guiAncestor(of pid: pid_t) -> pid_t? {
+    public static func guiAncestor(of pid: pid_t) -> pid_t? {
         var pid = pid, seen: Set<pid_t> = []
         while pid > 1, seen.insert(pid).inserted {
             if let app = NSRunningApplication(processIdentifier: pid),
@@ -163,7 +172,7 @@ public enum OverlayGeometry {
     }
 
     /// `pid`'s parent via libproc, or nil once the process is gone.
-    private static func parentPid(of pid: pid_t) -> pid_t? {
+    public static func parentPid(of pid: pid_t) -> pid_t? {
         var info = proc_bsdinfo()
         let size = Int32(MemoryLayout<proc_bsdinfo>.size)
         guard proc_pidinfo(pid, PROC_PIDTBSDINFO, 0, &info, size) == size,
@@ -197,7 +206,7 @@ public enum OverlayGeometry {
     /// don't all sit at layer 0 — Ghostty's main window reports layer
     /// 3 — so any non-negative layer counts; the 100pt size floor
     /// skips utility surfaces (menu extras, quick-look helpers).
-    private static func frontmostWindowFrame(ofAppPid pid: pid_t)
+    public static func frontmostWindowFrame(ofAppPid pid: pid_t)
         -> CGRect?
     {
         guard let list = CGWindowListCopyWindowInfo(
@@ -216,11 +225,14 @@ public enum OverlayGeometry {
         }.first
     }
 
-    /// The screen holding most of `quartzFrame`. CGWindowList space is
-    /// top-left-origin while `NSScreen.frame` is bottom-left-origin
-    /// with the primary screen at (0,0); a window spanning displays
-    /// counts toward the side it mostly occupies.
-    private static func screen(holding quartzFrame: CGRect) -> NSScreen? {
+    /// The screen holding most of `quartzFrame` — the pure core
+    /// slChecks exercises. CGWindowList space is top-left-origin while
+    /// `NSScreen.frame` is bottom-left-origin with the primary screen
+    /// at (0,0); a window spanning displays counts toward the side it
+    /// mostly occupies.
+    public static func screen(holdingQuartzFrame quartzFrame: CGRect)
+        -> NSScreen?
+    {
         guard let primary = NSScreen.screens
             .first(where: { $0.frame.origin == .zero })
         else { return nil }
