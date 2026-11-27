@@ -393,4 +393,58 @@ public let sceneKitChecks: [Check] = [
             try expect(lit > 2000, "only \(lit) lit pixels in the snapshot")
         }
     },
+    Check("when --color sets a hue it resprays saturated materials and texture atlases") {
+        try MainActor.assumeIsolated {
+            let liverySpec = spec(["sl", "--color", "blue"])
+            let renderer = SceneKitRenderer(
+                spec: liverySpec, stripWidth: 1000)
+            guard let scene = sceneKitScene(renderer, spec: liverySpec)
+            else {
+                try expect(false, "renderer produced no scene")
+                return
+            }
+            var repainted = 0, washed = 0
+            var offHue: [CGFloat] = []
+            scene.rootNode.enumerateChildNodes { node, _ in
+                for m in node.geometry?.materials ?? [] {
+                    if let object = m.diffuse.contents as? AnyObject,
+                       CFGetTypeID(object) == CGImage.typeID {
+                        washed += 1
+                        continue
+                    }
+                    guard let color = m.diffuse.contents as? NSColor,
+                          let hsb = color.usingColorSpace(.deviceRGB)
+                    else { continue }
+                    var h: CGFloat = 0, s: CGFloat = 0, b: CGFloat = 0
+                    var a: CGFloat = 0
+                    hsb.getHue(&h, saturation: &s, brightness: &b,
+                               alpha: &a)
+                    guard s >= 0.2, b >= 0.15 else { continue }
+                    repainted += 1
+                    if abs(h - 0.60) > 0.01 { offHue.append(h) }
+                }
+            }
+            try expect(repainted > 0, "no saturated materials resprayed")
+            try expect(offHue.isEmpty, "hue missed paint: \(offHue)")
+            try expect(washed > 0, "no texture atlases resprayed")
+        }
+    },
+    Check("when --color is absent the consist keeps its factory finish") {
+        try MainActor.assumeIsolated {
+            let renderer = SceneKitRenderer(
+                spec: defaultSpec(), stripWidth: 1000)
+            guard let scene = sceneKitScene(renderer) else {
+                try expect(false, "renderer produced no scene")
+                return
+            }
+            var sawURLTexture = false
+            scene.rootNode.enumerateChildNodes { node, _ in
+                for m in node.geometry?.materials ?? [] {
+                    if m.diffuse.contents is URL { sawURLTexture = true }
+                }
+            }
+            try expect(sawURLTexture,
+                       "factory model should keep its texture URLs")
+        }
+    },
 ]

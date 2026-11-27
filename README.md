@@ -84,6 +84,7 @@ man sl
 | `--model <file>` | Load a `.usdz`, `.scn` or `.dae` locomotive instead of the bundled `loco.usdz`. `-<n>`/`--cars` then couples the bundled tender and coach cars behind it. |
 | `--scale <f>` | Train size multiplier — the default already fills a large share of the screen height. |
 | `--angle <deg>` | Camera azimuth for the 3/4 view — default 55 swings toward the loco's front and switches to a low trackside perspective camera, so the consist approaches out of the distance and looms as it nears; `0` keeps the flat side-on ortho lane. |
+| `--color <name\|deg>` | Respray the consist — a color name (red, blue, black, …) or a hue in degrees repaints the painted parts; coal and metals keep their finish. |
 | `--freeze <sec>` | Render one frozen frame and hold — the lane `scripts/shot` uses. |
 | `--stealth` | Stay invisible: hidden from screenshots and screen recording. |
 

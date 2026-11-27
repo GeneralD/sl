@@ -44,6 +44,35 @@ public struct RunSpec: Sendable {
     /// toward the loco's front so it runs diagonally on screen.
     public var viewAngle: Double = 55
 
+    /// `--color <name|deg>`: respray the consist's colored materials.
+    /// Each component is an absolute override — nil keeps the
+    /// material's own value, so a named hue keeps its shading while a
+    /// neutral name (black, gray) only drops saturation.
+    public struct Livery: Sendable, Equatable {
+        public var hue: Double?        // 0–1 color wheel position
+        public var saturation: Double?
+        public var brightness: Double?
+
+        /// Named resprays: hue names keep each part's own
+        /// saturation/brightness; the neutrals pull them instead.
+        public static let named: [String: Livery] = [
+            "red":     Livery(hue: 0.00),
+            "crimson": Livery(hue: 0.96),
+            "orange":  Livery(hue: 0.07),
+            "yellow":  Livery(hue: 0.15),
+            "green":   Livery(hue: 0.33),
+            "teal":    Livery(hue: 0.50),
+            "blue":    Livery(hue: 0.60),
+            "indigo":  Livery(hue: 0.72),
+            "purple":  Livery(hue: 0.78),
+            "pink":    Livery(hue: 0.92),
+            "black":   Livery(saturation: 0.05, brightness: 0.16),
+            "gray":    Livery(saturation: 0.03, brightness: 0.45),
+            "grey":    Livery(saturation: 0.03, brightness: 0.45),
+        ]
+    }
+    public var livery: Livery? = nil
+
     public var stealth: Bool = false
 
     /// `-a` requests the accident: the visual panic (screamer sprites,
@@ -80,7 +109,7 @@ public extension RunSpec {
     /// Flag table matching `sl.1`; `-h` prints this.
     static func usage() -> String {
         """
-        usage: sl [-adeFhlsvw] [-<number-of-cars>] [--cars <n>] [--all] [--model <file>] [--freeze <seconds>] [--duration <seconds>] [--scale <factor>] [--angle <deg>] [--stealth]
+        usage: sl [-adeFhlsvw] [-<number-of-cars>] [--cars <n>] [--all] [--model <file>] [--freeze <seconds>] [--duration <seconds>] [--scale <factor>] [--angle <deg>] [--color <name|deg>] [--stealth]
                sl --help | --version
 
         flags:
@@ -101,6 +130,7 @@ public extension RunSpec {
           --duration SEC  cap the run at SEC seconds
           --scale F     train size multiplier (default 1)
           --angle DEG   camera azimuth: 0 = flat side view (default 55)
+          --color V     livery respray: color name or hue degrees (default: as-built)
           --stealth     hide from screen sharing
           --version     print version
         """
@@ -146,7 +176,7 @@ public extension RunSpec {
                 case "all": spec.allDisplays = true
                 case "stealth": spec.stealth = true
                 case "model", "freeze", "duration", "scale", "cars",
-                     "angle":
+                     "angle", "color":
                     let value: String
                     if let inline {
                         guard !inline.isEmpty else { return .failure(.missingValue("--\(name)")) }
@@ -187,6 +217,16 @@ public extension RunSpec {
                             return .failure(.invalidValue("--angle", value))
                         }
                         spec.viewAngle = degrees
+                    } else if name == "color" {
+                        if let named = Livery.named[value.lowercased()] {
+                            spec.livery = named
+                        } else if let degrees = Double(value),
+                                  degrees.isFinite,
+                                  (0..<360).contains(degrees) {
+                            spec.livery = Livery(hue: degrees / 360)
+                        } else {
+                            return .failure(.invalidValue("--color", value))
+                        }
                     } else {
                         guard let seconds = Double(value) else {
                             return .failure(.invalidValue("--freeze", value))
