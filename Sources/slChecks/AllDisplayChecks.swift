@@ -40,6 +40,22 @@ public let allDisplayChecks: [Check] = [
     Check("when no screens are attached the lane is nil") {
         try expect(OverlayGeometry.globalLane(frames: [], height: 180) == nil)
     },
+    Check("when the lane is angled it grows the view by the diagonal's drift") {
+        try expectEqual(OverlayGeometry.viewHeight(
+            laneHeight: 180, stripWidth: 1000, viewAngle: 0,
+            screenHeight: 800), 180)
+        let grown = OverlayGeometry.viewHeight(
+            laneHeight: 180, stripWidth: 1000, viewAngle: 30,
+            screenHeight: 800)
+        let drift = 1000 * OverlayGeometry.cameraTiltSlope * tan(30 * .pi / 180)
+        try expect(abs(grown - (180 + drift)) < 1,
+                   "view did not grow by the drift: \(grown)")
+    },
+    Check("when the diagonal would exceed the screen it caps the view at the screen height") {
+        try expectEqual(OverlayGeometry.viewHeight(
+            laneHeight: 600, stripWidth: 2000, viewAngle: 45,
+            screenHeight: 800), 800)
+    },
     Check("when mapping a global rect onto a screen it subtracts the screen origin") {
         let local = OverlayGeometry.localRect(
             NSRect(x: 1784, y: 8, width: 220, height: 90),

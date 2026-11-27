@@ -382,11 +382,12 @@ public final class SceneKitRenderer: Renderer {
     /// then runs diagonally on screen and the smokebox face shows —
     /// the sketch-requested 3/4 look. 0 keeps the classic flat
     /// side-on lane (the original task-71 framing). `look(at:)` keeps
-    /// the horizon level. `orthographicScale` stays height/2: ortho
-    /// scale is isotropic, so zooming to compensate the ~0.8
-    /// vertical foreshortening would crop the consist's width
-    /// instead — the train lands a touch smaller than the old
-    /// side-on framing. One world unit is no longer one screen point
+    /// the horizon level. `orthographicScale` stays height/2, so one
+    /// world unit stays one screen point: when `--angle` grows the
+    /// window taller than the lane (`OverlayGeometry.viewHeight`),
+    /// the extra room is simply more world above and below — the
+    /// train keeps its size, and aiming at the *lane* centre (not the
+    /// frame's) lands the diagonal midpoint mid-window
     /// (docs/adr/scene.md).
     private func addCamera(to scene: SCNScene, frame: NSRect,
                            azimuth: Double) {
@@ -399,7 +400,7 @@ public final class SceneKitRenderer: Renderer {
         node.name = "camera"
         node.camera = camera
         let target = SCNVector3(
-            Float(frame.width / 2), Float(frame.height / 2), 0)
+            Float(frame.width / 2), Float(laneHeight / 2), 0)
         // Offset: elevation ~(0.6, 0.8) × 1500 pt; azimuth swings the
         // horizontal reach toward -x (front) so the diagonal reads.
         let az = azimuth * .pi / 180

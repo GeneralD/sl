@@ -301,7 +301,11 @@ public enum ShotEvidence {
         let width = stripWidth ?? screen?.frame.width ?? 1920
         let laneH = OverlayGeometry.laneHeight(
             onScreenHeight: screen?.frame.height ?? 1080)
-        let frame = NSRect(x: 0, y: 0, width: width, height: laneH)
+        let frame = NSRect(x: 0, y: 0, width: width,
+                           height: OverlayGeometry.viewHeight(
+                               laneHeight: laneH, stripWidth: width,
+                               viewAngle: spec.viewAngle,
+                               screenHeight: screen?.frame.height ?? 1080))
         let renderer = SceneKitRenderer(
             spec: spec, stripWidth: width, laneHeight: laneH)
         guard let view = renderer.makeView(in: frame, spec: spec)
