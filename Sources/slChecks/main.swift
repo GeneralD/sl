@@ -17,4 +17,10 @@ if let command = cli.first {
     }
 }
 
-exit(CheckRunner.run(Registry.all) == 0 ? 0 : 1)
+let failures = CheckRunner.run(Registry.all)
+// Probe: if CI dies after this line, the crash is in process
+// teardown (static destructors / SceneKit globals), not a check.
+FileHandle.standardError.write(
+    Data("slChecks: suite complete, \(failures) failed\n".utf8))
+fflush(stdout)
+exit(failures == 0 ? 0 : 1)

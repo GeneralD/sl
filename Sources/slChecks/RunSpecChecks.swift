@@ -36,6 +36,14 @@ public let runSpecChecks: [Check] = [
     Check("when invoked with -a it requests the accident") {
         try expectFlag(["sl", "-a"], \.accident)
     },
+    Check("when -a runs the consist always seats a coach") {
+        // A tender carries no passenger windows — `-a` needs >= 2
+        // cars (tender + coach) or the panic shows on an empty train.
+        try expectEqual(try spec(["sl", "-a"]).cars, 2)
+        try expectEqual(try spec(["sl", "-a", "--cars", "0"]).cars, 2)
+        try expectEqual(try spec(["sl", "-1a"]).cars, 2)
+        try expectEqual(try spec(["sl", "-5a"]).cars, 5)
+    },
     Check("when invoked with -c it reports a parse error") {
         try parseFails(["sl", "-c"])
     },

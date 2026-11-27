@@ -228,11 +228,28 @@ public final class SceneKitRenderer: Renderer {
         disco = spec.disco ? DiscoTimeline() : nil
         rocking = spec.accident
         if spec.accident {
-            // boundingBox covers the whole subtree in train-local
-            // space, so windows land correctly for the procedural
-            // loco's track-contact pivot and centered --model pivots.
-            let bounds = train.boundingBox
-            let field = ScreamerField(bounds: bounds.min, hi: bounds.max)
+            // Windows belong on the passenger coaches — the loco and
+            // tender carry none (the earlier whole-consist band floated
+            // a window over the loco nose and starved the last car).
+            // Each model-coach node's bounds convert to train space;
+            // coaches are axis-aligned under the chain so the two
+            // corners suffice. No coaches means no windows.
+            let chain = train.childNode(
+                withName: "car-chain", recursively: true)
+            let cars = (chain?.childNodes ?? []).compactMap { node
+                -> (lo: SCNVector3, hi: SCNVector3)? in
+                guard node.name?.hasPrefix("model-coach") == true
+                else { return nil }
+                let b = node.boundingBox
+                let p0 = node.convertPosition(b.min, to: train)
+                let p1 = node.convertPosition(b.max, to: train)
+                return (
+                    lo: SCNVector3(
+                        min(p0.x, p1.x), min(p0.y, p1.y), min(p0.z, p1.z)),
+                    hi: SCNVector3(
+                        max(p0.x, p1.x), max(p0.y, p1.y), max(p0.z, p1.z)))
+            }
+            let field = ScreamerField(cars: cars)
             train.addChildNode(field.root)
             screamers = field
         }

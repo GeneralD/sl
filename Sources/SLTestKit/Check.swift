@@ -32,12 +32,27 @@ public enum CheckRunner {
     public static func run(_ checks: [Check]) -> Int {
         var failures = 0
         for (i, check) in checks.enumerated() {
+            // Progress heartbeat on stderr: a crash mid-suite loses
+            // buffered stdout TAP lines entirely, but this line shows
+            // exactly which check was running when it died.
+            FileHandle.standardError.write(
+                Data("… \(i + 1)/\(checks.count) \(check.name)\n".utf8))
             do {
-                try check.body()
+                // Drain per check: the suite runs 200+ scene-building
+                // bodies back-to-back on the main actor, so the
+                // top-level autorelease pool never drains — deferred
+                // ObjC releases (SCN internals) accumulate until CI's
+                // tighter limits bite near the suite's end.
+                try autoreleasepool { try check.body() }
                 print("ok \(i + 1) - \(check.name)")
             } catch {
                 failures += 1
-                print("not ok \(i + 1) - \(check.name) — \(error)")
+                // Failures go to stderr too: CI logs can drop buffered
+                // stdout, which hides exactly the lines that matter.
+                let line = "not ok \(i + 1) - \(check.name) — \(error)"
+                print(line)
+                FileHandle.standardError.write(
+                    Data((line + "\n").utf8))
             }
         }
         print("\(checks.count - failures)/\(checks.count) checks passed")
