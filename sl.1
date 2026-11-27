@@ -98,9 +98,11 @@ multiplies it (must be positive). Smoke, cars and effects follow.
 .It Fl -angle Ar degrees
 Camera azimuth for the 3/4 view. The default 25 swings the camera
 toward the locomotive's front so the consist runs diagonally and the
-smokebox face reads on screen;
+smokebox face reads on screen. Any nonzero angle also switches the
+camera to perspective projection, so the far end of the lane shrinks
+into the distance and the consist grows as it approaches;
 .Ar 0
-keeps the classic flat side-on lane. Valid range is 0-75.
+keeps the classic flat side-on ortho lane. Valid range is 0-75.
 .It Fl -stealth
 Stay invisible: the train is hidden from screenshots and screen
 recording.

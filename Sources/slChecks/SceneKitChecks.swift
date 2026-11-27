@@ -13,6 +13,13 @@ private func defaultSpec() -> RunSpec {
     }
 }
 
+private func spec(_ args: [String]) -> RunSpec {
+    switch RunSpec.parse(args) {
+    case .success(let spec): return spec
+    case .failure(let error): fatalError("spec must parse: \(error)")
+    }
+}
+
 private func withRendererEnv<T>(_ value: String?, _ body: () throws -> T) rethrows -> T {
     let had = getenv("SL_RENDERER")
     let saved = had.map { String(cString: $0) }
@@ -27,11 +34,12 @@ private func withRendererEnv<T>(_ value: String?, _ body: () throws -> T) rethro
 @MainActor
 private func sceneKitScene(
     _ renderer: SceneKitRenderer,
-    width: CGFloat = 1000, height: CGFloat = 180
+    width: CGFloat = 1000, height: CGFloat = 180,
+    spec: RunSpec = defaultSpec()
 ) -> SCNScene? {
     guard let view = renderer.makeView(
         in: NSRect(x: 0, y: 0, width: width, height: height),
-        spec: defaultSpec()) as? SCNView else { return nil }
+        spec: spec) as? SCNView else { return nil }
     return view.scene
 }
 
@@ -91,8 +99,14 @@ public let sceneKitChecks: [Check] = [
                 try expect(false, "scene has no camera node")
                 return
             }
-            try expect(camera.usesOrthographicProjection)
-            try expect(camera.orthographicScale == 90)
+            // Angled default is perspective — ortho has no
+            // foreshortening, so the diagonal slid flat instead of
+            // approaching. fov = 2·atan(scale/1500) keeps the
+            // target-plane framing identical to ortho.
+            try expect(!camera.usesOrthographicProjection)
+            let wantFov = CGFloat(2 * atan2(90.0, 1500.0) * 180 / .pi)
+            try expect(abs(camera.fieldOfView - wantFov) < 0.2,
+                       "fov off the ortho match: \(camera.fieldOfView)")
             // Elevated toward the viewer (+y, +z) with the default
             // 25° azimuth swinging toward the loco's front (-x):
             // x = 500 - 1200·sin(25°), z = 1200·cos(25°); pitched down,
@@ -108,6 +122,17 @@ public let sceneKitChecks: [Check] = [
                        "camera yaw off the azimuth: \(camNode.eulerAngles)")
             try expect(abs(camNode.eulerAngles.z) < 0.001,
                        "camera rolled: \(camNode.eulerAngles)")
+            // `--angle 0` keeps the classic flat side-on ortho lane.
+            let flatSpec = spec(["sl", "--angle", "0"])
+            let flat = SceneKitRenderer(spec: flatSpec, stripWidth: 1000)
+            guard let flatScene = sceneKitScene(flat, spec: flatSpec),
+                  let flatCam = flatScene.rootNode.childNodes.first(
+                      where: { $0.camera != nil })?.camera else {
+                try expect(false, "flat scene has no camera node")
+                return
+            }
+            try expect(flatCam.usesOrthographicProjection)
+            try expectEqual(flatCam.orthographicScale, 90)
         }
     },
     Check("when the frame is taller than the lane the camera still aims at the lane's centre") {
@@ -116,10 +141,11 @@ public let sceneKitChecks: [Check] = [
             // keep aiming at the lane's own centre so the diagonal's
             // midpoint lands mid-window, and orthoScale tracks the
             // taller frame (1:1 world↔point mapping).
-            let renderer = SceneKitRenderer(spec: defaultSpec(), stripWidth: 1000)
+            let renderer = SceneKitRenderer(
+                spec: spec(["sl", "--angle", "0"]), stripWidth: 1000)
             guard let scene = (renderer.makeView(
                 in: NSRect(x: 0, y: 0, width: 1000, height: 500),
-                spec: defaultSpec()) as? SCNView)?.scene else {
+                spec: spec(["sl", "--angle", "0"])) as? SCNView)?.scene else {
                 try expect(false, "renderer produced no scene")
                 return
             }
