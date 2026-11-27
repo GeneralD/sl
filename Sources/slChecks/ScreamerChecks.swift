@@ -43,6 +43,12 @@ private func countNamed(_ name: String, under node: SCNNode) -> Int {
     return count
 }
 
+/// Collects descendant nodes named `name` under `node`.
+private func collectNamed(_ name: String, under node: SCNNode) -> [SCNNode] {
+    (node.name == name ? [node] : [])
+        + node.childNodes.flatMap { collectNamed(name, under: $0) }
+}
+
 /// Figures currently popped up: scale above a visible epsilon.
 private func visibleScreamers(under node: SCNNode) -> Int {
     var count = node.name == "screamer" && node.scale.x > 0.05 ? 1 : 0
@@ -72,6 +78,36 @@ public let screamerChecks: [Check] = [
             let figures = countNamed("screamer", under: parts.train)
             try expect(figures >= 6,
                        "only \(figures) screamer sprites in the windows")
+        }
+    },
+    Check("when -a is on every window sits inside a coach's span") {
+        try MainActor.assumeIsolated {
+            guard let parts = sceneParts(spec: accidentSpec()),
+                  let chain = parts.train.childNode(
+                      withName: "car-chain", recursively: true)
+            else {
+                try expect(false, "-a scene has no car chain")
+                return
+            }
+            // Coach x-ranges in train space — the screamer windows
+            // must land inside them, never over the loco or tender.
+            let spans = chain.childNodes.compactMap { node
+                -> ClosedRange<CGFloat>? in
+                guard node.name?.hasPrefix("model-coach") == true
+                else { return nil }
+                let b = node.boundingBox
+                let p0 = node.convertPosition(b.min, to: parts.train)
+                let p1 = node.convertPosition(b.max, to: parts.train)
+                return min(p0.x, p1.x)...max(p0.x, p1.x)
+            }
+            try expect(!spans.isEmpty, "no coaches found")
+            let windows = collectNamed("car-window", under: parts.train)
+            try expect(!windows.isEmpty, "no car windows")
+            for window in windows {
+                let x = window.position.x
+                try expect(spans.contains { $0.contains(x) },
+                           "window x=\(x) outside every coach")
+            }
         }
     },
     Check("when -a is on the screamers pop in and out over time") {

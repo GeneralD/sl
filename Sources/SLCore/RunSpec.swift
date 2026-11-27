@@ -294,6 +294,10 @@ public extension RunSpec {
                 if let error = setCars(n) { return .failure(error) }
             }
         }
+        // An accident needs passengers: the first trailing car is a
+        // coal tender with no windows, so `-a` alone (or `-a --cars 0/1`)
+        // would show a panic nobody is in. Bump to one coach minimum.
+        if spec.accident { spec.cars = max(spec.cars, 2) }
         return .success(spec)
     }
 }

@@ -7,10 +7,12 @@ import SceneKit
 /// shots see the same frame. Scream audio is the audio engine's job
 /// (`RunSpec.wantScreams`); this type never touches sound.
 ///
-/// Placement is bounds-driven: the caller hands the train node's
-/// content bounding box (any pivot convention — procedural loco's
-/// track-contact origin or a centered `--model` pivot), and windows
-/// spread across the consist's side band proportional to its size.
+/// Placement is per-coach: the caller hands each passenger car's
+/// bounding box in train space (any pivot convention — the windows
+/// stay inside the car), and windows spread inside each car's side
+/// band proportional to its size. The loco and tender get none —
+/// they carry no passenger windows (earlier the whole-consist band
+/// floated a window over the loco nose and starved the last coach).
 @MainActor
 final class ScreamerField {
     /// Reference loco height the window/figure dimensions scale from.
@@ -21,36 +23,47 @@ final class ScreamerField {
 
     /// Attach point: the renderer adds this node to the train.
     let root = SCNNode()
-    private var figures: [(node: SCNNode, phase: Double, anchorY: CGFloat)] = []
-    private let unit: CGFloat
+    private var figures: [(node: SCNNode, phase: Double,
+                           anchorY: CGFloat, unit: CGFloat)] = []
 
-    init(bounds lo: SCNVector3, hi: SCNVector3) {
+    /// `cars` — one `(lo, hi)` train-space box per passenger coach.
+    init(cars: [(lo: SCNVector3, hi: SCNVector3)]) {
         root.name = "screamers"
-        let width = CGFloat(hi.x - lo.x)
-        let height = CGFloat(hi.y - lo.y)
-        unit = height / Self.referenceHeight
-        let windowY = CGFloat(lo.y) + height * 0.45
-        // The z nudge scales with `unit` like every other dimension:
-        // model runs hand us asset-unit bounds (meters), where a
-        // fixed 1.5 would hover the windows far off the body.
-        let frontZ = CGFloat(hi.z) + 1.5 * unit
-        // Windows hug the boiler/tender side band, clear of the cowcatcher
-        // nose and the cab's own windows.
-        let xLo = CGFloat(lo.x) + width * 0.1
-        let xHi = CGFloat(hi.x) - width * 0.08
-        let spacing = 34 * unit
-        // Degenerate bounds (empty fallback train, zero-size model)
-        // must not reach Int(_:): spacing 0 or non-finite yields NaN.
-        guard spacing.isFinite, spacing > 0,
-              width.isFinite, height.isFinite, width > 0, height > 0
-        else { return }
-        let count = min(64, max(1, Int((xHi - xLo) / spacing)))
-        let span = CGFloat(count - 1) * spacing
-        let startX = (xLo + xHi) / 2 - span / 2
-        for i in 0..<count {
-            addWindow(
-                at: startX + CGFloat(i) * spacing,
-                y: windowY, frontZ: frontZ, seed: i)
+        var total = 0
+        for car in cars {
+            let width = CGFloat(car.hi.x - car.lo.x)
+            let height = CGFloat(car.hi.y - car.lo.y)
+            let unit = height / Self.referenceHeight
+            let spacing = 28 * unit
+            // Degenerate boxes (zero-size model) must not reach
+            // Int(_:): spacing 0 or non-finite yields NaN.
+            guard spacing.isFinite, spacing > 0,
+                  width.isFinite, height.isFinite,
+                  width > 0, height > 0 else { continue }
+            // Window band sits in the body's upper half — the coach
+            // model's own openings run ~0.6 of its height.
+            let windowY = car.lo.y + height * 0.62
+            // The z nudge scales with `unit` like every other
+            // dimension: model runs hand us asset-unit bounds
+            // (meters), where a fixed 1.5 would hover the windows
+            // far off the body.
+            let frontZ = car.hi.z + 1.5 * unit
+            // Coach ends carry doors and gangways — windows keep a
+            // body inset off each end.
+            let xLo = car.lo.x + width * 0.07
+            let xHi = car.hi.x - width * 0.07
+            let count = max(1, min(64 - total, Int((xHi - xLo) / spacing)))
+            guard count > 0 else { break }
+            let span = CGFloat(count - 1) * spacing
+            let startX = (xLo + xHi) / 2 - span / 2
+            for i in 0..<count {
+                addWindow(
+                    at: startX + CGFloat(i) * spacing,
+                    y: windowY, frontZ: frontZ,
+                    unit: unit, seed: total + i)
+            }
+            total += count
+            if total >= 64 { break }
         }
     }
 
@@ -66,7 +79,8 @@ final class ScreamerField {
                 .truncatingRemainder(dividingBy: 1)
             let pop = CGFloat(Self.popScale(cycle))
             figure.node.scale = SCNVector3(pop, pop, pop)
-            figure.node.position.y = figure.anchorY + pop * unit * 9
+            figure.node.position.y = figure.anchorY
+                + pop * figure.unit * 9
         }
     }
 
@@ -90,9 +104,9 @@ final class ScreamerField {
     /// One car window: dark glass, a sill bar, and two figures rising
     /// inside it on staggered phases.
     private func addWindow(at x: CGFloat, y: CGFloat, frontZ: CGFloat,
-                           seed: Int) {
-        let windowWidth = 16 * unit
-        let windowHeight = 22 * unit
+                           unit: CGFloat, seed: Int) {
+        let windowWidth = 14 * unit
+        let windowHeight = 19 * unit
         let window = SCNNode()
         window.name = "car-window"
         window.position = SCNVector3(x, y, frontZ)
@@ -114,7 +128,7 @@ final class ScreamerField {
 
         let anchorY = -windowHeight / 2 + unit
         for j in 0..<2 {
-            let figure = makeFigure(seed: seed * 2 + j)
+            let figure = makeFigure(seed: seed * 2 + j, unit: unit)
             figure.scale = SCNVector3(0, 0, 0)
             figure.position = SCNVector3(
                 (j == 0 ? -3.5 : 3.5) * unit, anchorY, 1.5 * unit)
@@ -123,14 +137,14 @@ final class ScreamerField {
                 node: figure,
                 phase: (Double(seed * 2 + j) * 0.6180339887)
                     .truncatingRemainder(dividingBy: 1),
-                anchorY: anchorY))
+                anchorY: anchorY, unit: unit))
         }
         root.addChildNode(window)
     }
 
     /// A ~12 pt person: skin-tone head over a capsule torso. Two shirt
     /// colors alternate so a crowd reads as a crowd, not a row.
-    private func makeFigure(seed: Int) -> SCNNode {
+    private func makeFigure(seed: Int, unit: CGFloat) -> SCNNode {
         let figure = SCNNode()
         figure.name = "screamer"
 
