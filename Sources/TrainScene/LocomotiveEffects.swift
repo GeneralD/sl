@@ -107,13 +107,15 @@ private func chimneySmoke(scale s: CGFloat) -> SCNParticleSystem {
     smoke.warmupDuration = 1.4    // puffs already aloft in frame one
     smoke.particleLifeSpan = 3.6
     smoke.particleLifeSpanVariation = 0.9
-    smoke.particleVelocity = 22
-    smoke.particleVelocityVariation = 10
+    smoke.particleVelocity = 16
+    smoke.particleVelocityVariation = 8
     smoke.emittingDirection = SCNVector3(0.2, 1, 0)
     smoke.spreadingAngle = 40
-    smoke.dampingFactor = 0.35
-    // Buoyancy: the column keeps climbing as it disperses.
-    smoke.acceleration = SCNVector3(0, 5, 0)
+    smoke.dampingFactor = 0.15
+    // Buoyancy accelerates the climb: born at a modest pace, visibly
+    // faster as it rises — weak damping so the lift compounds instead
+    // of saturating (user asked for an accelerating ascent).
+    smoke.acceleration = SCNVector3(0, 13, 0)
     smoke.particleColor = NSColor(calibratedWhite: 0.72, alpha: 1)
     smoke.particleColorVariation = SCNVector4(0.06, 0.06, 0.06, 0.15)
     smoke.particleSize = 14 * s
@@ -182,24 +184,37 @@ private func smokePuff() -> NSImage {
 
 // MARK: - Headlight
 
-/// The visible beam: a warm translucent cone reaching forward (-x)
+/// The visible beam: a warm translucent shaft reaching forward (-x)
 /// from the lamp. SceneKit lights need geometry to land on and the
-/// lane is transparent, so the cone itself is the "beam". Alpha
-/// blend, never additive: `.add` ignores alpha and renders an opaque
-/// yellow wedge. The lengthwise fade texture softens the cone's hard
-/// silhouette into a light shaft.
+/// lane is transparent, so geometry itself is the "beam". One cone
+/// reads as a hard-edged wedge (user-reported "あからさまに円錐"), so
+/// the shaft is three nested shells — a bright narrow core inside
+/// wider, fainter halos — faking a volumetric falloff with no single
+/// hard silhouette. Alpha blend, never additive: `.add` ignores alpha
+/// and renders an opaque yellow wedge. The lengthwise fade texture
+/// softens each shell's far end.
 private func headlightBeam(scale s: CGFloat) -> SCNNode {
     let length = 140 * s
-    let beam = SCNNode()
+    func shell(_ topR: CGFloat, _ bottomR: CGFloat, _ alpha: CGFloat)
+        -> SCNNode {
+        let node = SCNNode()
+        node.geometry = SCNCone(
+            topRadius: topR * s, bottomRadius: bottomR * s,
+            height: length)
+        let material = SCNMaterial()
+        material.lightingModel = .constant
+        material.diffuse.contents = beamFade()
+        material.transparency = alpha
+        material.writesToDepthBuffer = false
+        node.geometry?.materials = [material]
+        return node
+    }
+    // Children sit at the core's local origin, so they inherit its
+    // -x aim and centre — the shells share one axis by construction.
+    let beam = shell(6, 1.5, 0.35)          // bright core
     beam.name = "headlight-beam"
-    beam.geometry = SCNCone(
-        topRadius: 12 * s, bottomRadius: 3 * s, height: length)
-    let material = SCNMaterial()
-    material.lightingModel = .constant
-    material.diffuse.contents = beamFade()
-    material.transparency = 0.55
-    material.writesToDepthBuffer = false
-    beam.geometry?.materials = [material]
+    beam.addChildNode(shell(11, 3, 0.2))    // mid glow
+    beam.addChildNode(shell(17, 4.5, 0.1))  // wide faint halo
     beam.eulerAngles.z = .pi / 2 // cone +y axis -> -x (forward)
     beam.position = SCNVector3(Float(-length / 2), 0, 0)
     return beam
