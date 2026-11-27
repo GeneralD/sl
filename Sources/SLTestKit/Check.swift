@@ -38,7 +38,12 @@ public enum CheckRunner {
             FileHandle.standardError.write(
                 Data("… \(i + 1)/\(checks.count) \(check.name)\n".utf8))
             do {
-                try check.body()
+                // Drain per check: the suite runs 200+ scene-building
+                // bodies back-to-back on the main actor, so the
+                // top-level autorelease pool never drains — deferred
+                // ObjC releases (SCN internals) accumulate until CI's
+                // tighter limits bite near the suite's end.
+                try autoreleasepool { try check.body() }
                 print("ok \(i + 1) - \(check.name)")
             } catch {
                 failures += 1
