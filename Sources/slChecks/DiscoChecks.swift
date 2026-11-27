@@ -181,12 +181,15 @@ public let discoChecks: [Check] = [
             }
             renderer.render(at: 0.125)
             let scaleA = train.scale.x
+            let (keyA, ambientA) = lightColors(scene)
             renderer.render(at: 0.75)
             try expectEqual(train.scale.x, scaleA)
-            let (key, ambient) = lightColors(scene)
-            // Default rig: lights keep their authored colors (nil color
-            // means SceneKit default white — both equal, never swapped).
-            try expect(key == ambient || (key == nil && ambient == nil))
+            let (keyB, ambientB) = lightColors(scene)
+            // Disco swaps light colors between frames; with -d off the
+            // rig is whatever the livery staged (the matte default adds
+            // a rim light) but never changes over time.
+            try expect(keyA == keyB && ambientA == ambientB,
+                       "light colors changed without disco")
         }
     },
 ]

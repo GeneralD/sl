@@ -131,15 +131,17 @@ private func chimneySmoke(scale s: CGFloat) -> SCNParticleSystem {
     return smoke
 }
 
-/// Quick fade-in, hold, fade out over each puff's life — keyTimes are
+/// Born clearly visible, then thins out as it climbs — keyTimes are
 /// explicit: even spacing would keep a puff translucent for the first
-/// ~1.2s of its 3.6s life (the reported "smoke appears late"). Near-
-/// peak by 8% of life so the plume starts AT the stack. Peak opacity
-/// stays well under 1 so the lane underneath never gets opaqued.
+/// ~1.2s of its 3.6s life (the reported "smoke appears late"), and a
+/// hold-then-fade reads as a lid over the stack rather than steam
+/// dissipating (user wants clear at birth, thinning on the rise).
+/// Peak opacity stays well under 1 so the lane underneath never gets
+/// opaqued.
 private func fadeController() -> SCNParticlePropertyController {
     let animation = CAKeyframeAnimation()
-    animation.values = [0.0, 0.55, 0.62, 0.5, 0.0]
-    animation.keyTimes = [0.0, 0.08, 0.25, 0.7, 1.0]
+    animation.values = [0.62, 0.55, 0.3, 0.0]
+    animation.keyTimes = [0.0, 0.3, 0.7, 1.0]
     return SCNParticlePropertyController(animation: animation)
 }
 

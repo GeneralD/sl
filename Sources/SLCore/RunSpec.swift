@@ -48,6 +48,8 @@ public struct RunSpec: Sendable {
     /// Each component is an absolute override — nil keeps the
     /// material's own value, so a named hue keeps its shading while a
     /// neutral name (black, gray) only drops saturation.
+    /// The default livery is matte black with gold fittings — the
+    /// signature look; `factory`/`none` restores the as-built finish.
     public struct Livery: Sendable, Equatable {
         public var hue: Double?        // 0–1 color wheel position
         public var saturation: Double?
@@ -91,7 +93,7 @@ public struct RunSpec: Sendable {
             "grey":    Livery(saturation: 0.03, brightness: 0.45),
         ]
     }
-    public var livery: Livery? = nil
+    public var livery: Livery? = Livery.named["black"]
 
     public var stealth: Bool = false
 
@@ -150,7 +152,7 @@ public extension RunSpec {
           --duration SEC  cap the run at SEC seconds
           --scale F     train size multiplier (default 1)
           --angle DEG   camera azimuth: 0 = flat side view (default 55)
-          --color V     livery respray: color name or hue degrees (default: as-built)
+          --color V     livery respray: color name or hue degrees (default: black; 'factory' restores as-built)
           --stealth     hide from screen sharing
           --version     print version
         """
@@ -238,7 +240,9 @@ public extension RunSpec {
                         }
                         spec.viewAngle = degrees
                     } else if name == "color" {
-                        if let named = Livery.named[value.lowercased()] {
+                        if ["factory", "none"].contains(value.lowercased()) {
+                            spec.livery = nil
+                        } else if let named = Livery.named[value.lowercased()] {
                             spec.livery = named
                         } else if let degrees = Double(value),
                                   degrees.isFinite,

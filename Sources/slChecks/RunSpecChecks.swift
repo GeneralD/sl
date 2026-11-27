@@ -168,7 +168,14 @@ public let runSpecChecks: [Check] = [
         try expectEqual(try spec(["sl", "--color=210"]).livery?.hue,
                         210.0 / 360)
         let plain = try spec(["sl"])
-        try expect(plain.livery == nil)
+        try expect(plain.livery == RunSpec.Livery.named["black"],
+                   "default livery is not matte black")
+        let factory = try spec(["sl", "--color", "factory"])
+        try expect(factory.livery == nil,
+                   "--color factory did not restore the as-built finish")
+        let none = try spec(["sl", "--color", "none"])
+        try expect(none.livery == nil,
+                   "--color none did not restore the as-built finish")
         try parseFails(["sl", "--color", "chartreuse"])
         try parseFails(["sl", "--color", "360"])
         try parseFails(["sl", "--color"])
