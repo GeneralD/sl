@@ -56,9 +56,10 @@ public enum OverlayGeometry {
     }
 
     /// The displays a run covers: every screen for `--all`, else only
-    /// the frontmost one. Empty when no display is attached.
+    /// the one holding the terminal `sl` was typed into. Empty when no
+    /// display is attached.
     public static func runScreens(all: Bool) -> [NSScreen] {
-        all ? NSScreen.screens : frontmostScreen().map { [$0] } ?? []
+        all ? NSScreen.screens : launchScreen().map { [$0] } ?? []
     }
 
     /// The lane the train crosses, in global coordinates, built from
@@ -82,6 +83,163 @@ public enum OverlayGeometry {
     /// main screen.
     public static func frontmostScreen() -> NSScreen? {
         NSScreen.main
+    }
+
+    /// The screen holding the terminal window `sl` was typed into.
+    /// `NSScreen.main` tracks keyboard focus, which misses the right
+    /// display on multi-monitor setups, so the terminal is located
+    /// directly: the ancestor PID chain is walked to the nearest GUI
+    /// process (the terminal app) and its frontmost window's frame is
+    /// read from CGWindowList. Inside tmux the chain dies at the
+    /// server, so the client PID is used instead; `TERM_PROGRAM` and
+    /// the frontmost app are shallower fallbacks. When no candidate
+    /// yields a window — automation, remote shells — the keyboard-
+    /// focus screen is the final answer.
+    public static func launchScreen() -> NSScreen? {
+        launchPids
+            .lazy
+            .compactMap(frontmostWindowFrame(ofAppPid:))
+            .compactMap(screen(holding:))
+            .first ?? frontmostScreen()
+    }
+
+    /// App PIDs that should own the terminal window, best guess first:
+    /// the nearest GUI-app ancestor of this process, the launch
+    /// context's `__CFBundleIdentifier` (inherited through tmux/zellij
+    /// servers), the tmux client's GUI ancestor, the TERM_PROGRAM-
+    /// declared app, and the frontmost application.
+    private static var launchPids: [pid_t] {
+        launchPidCandidates.reduce(into: [pid_t]()) { pids, pid in
+            if !pids.contains(pid) { pids.append(pid) }
+        }
+    }
+
+    private static var launchPidCandidates: [pid_t] {
+        let env = ProcessInfo.processInfo.environment
+        return [
+            guiAncestor(of: getppid()),
+            env["__CFBundleIdentifier"].flatMap(runningPid(ofBundleId:)),
+            env["TMUX"] == nil ? nil : tmuxClientPid().flatMap(guiAncestor),
+            env["TERM_PROGRAM"].flatMap { terminalBundleIds[$0] }
+                .flatMap(runningPid(ofBundleId:)),
+            NSWorkspace.shared.frontmostApplication?.processIdentifier,
+        ].compactMap { $0 }
+    }
+
+    /// TERM_PROGRAM identifier → bundle ID, for launches whose
+    /// ancestor chain can't be walked (detached shells, helpers).
+    private static let terminalBundleIds: [String: String] = [
+        "Apple_Terminal": "com.apple.Terminal",
+        "iTerm.app": "com.googlecode.iterm2",
+        "vscode": "com.microsoft.VSCode",
+        "WezTerm": "com.github.wez.wezterm",
+        "ghostty": "com.mitchellh.ghostty",
+        "kitty": "net.kovidgoyal.kitty",
+        "alacritty": "org.alacritty",
+        "WarpTerminal": "dev.warp.Warp-Stable",
+        "Hyper": "co.zeit.hyper",
+        "zed": "dev.zed.Zed",
+    ]
+
+    /// The PID of a running app for `bundleId`, if one exists.
+    private static func runningPid(ofBundleId bundleId: String) -> pid_t? {
+        NSRunningApplication
+            .runningApplications(withBundleIdentifier: bundleId)
+            .first?.processIdentifier
+    }
+
+    /// The nearest GUI-app ancestor of `pid` — the terminal — or nil
+    /// when the chain reaches launchd without one (remote or
+    /// daemonized shells).
+    private static func guiAncestor(of pid: pid_t) -> pid_t? {
+        var pid = pid, seen: Set<pid_t> = []
+        while pid > 1, seen.insert(pid).inserted {
+            if let app = NSRunningApplication(processIdentifier: pid),
+               app.activationPolicy != .prohibited { return pid }
+            guard let ppid = parentPid(of: pid), ppid != pid else { break }
+            pid = ppid
+        }
+        return nil
+    }
+
+    /// `pid`'s parent via libproc, or nil once the process is gone.
+    private static func parentPid(of pid: pid_t) -> pid_t? {
+        var info = proc_bsdinfo()
+        let size = Int32(MemoryLayout<proc_bsdinfo>.size)
+        guard proc_pidinfo(pid, PROC_PIDTBSDINFO, 0, &info, size) == size,
+              let ppid = pid_t(exactly: info.pbi_ppid)
+        else { return nil }
+        return ppid
+    }
+
+    /// The foreground tmux client's PID. Panes hang off the *server*,
+    /// so inside tmux the ancestor walk dies there; the client is the
+    /// terminal app's child and keeps a walkable chain.
+    private static func tmuxClientPid() -> pid_t? {
+        let task = Process()
+        let pipe = Pipe()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+        task.arguments = ["tmux", "display-message", "-p", "#{client_pid}"]
+        task.standardOutput = pipe
+        task.standardError = FileHandle.nullDevice
+        guard let _ = try? task.run() else { return nil }
+        task.waitUntilExit()
+        guard task.terminationStatus == 0 else { return nil }
+        return Int32(String(
+            decoding: pipe.fileHandleForReading.readDataToEndOfFile(),
+            as: UTF8.self
+        ).trimmingCharacters(in: .whitespacesAndNewlines))
+    }
+
+    /// The frontmost normal-ish window of `pid` in Quartz display
+    /// coordinates (top-left origin). CGWindowList is front-to-back,
+    /// so the first owned window is the one being typed into. Terminals
+    /// don't all sit at layer 0 — Ghostty's main window reports layer
+    /// 3 — so any non-negative layer counts; the 100pt size floor
+    /// skips utility surfaces (menu extras, quick-look helpers).
+    private static func frontmostWindowFrame(ofAppPid pid: pid_t)
+        -> CGRect?
+    {
+        guard let list = CGWindowListCopyWindowInfo(
+            [.optionOnScreenOnly, .excludeDesktopElements],
+            kCGNullWindowID) as? [[String: Any]] else { return nil }
+        return list.lazy.compactMap { entry -> CGRect? in
+            guard entry[kCGWindowOwnerPID as String] as? Int == Int(pid),
+                  let layer = entry[kCGWindowLayer as String] as? Int,
+                  layer >= 0,
+                  let bounds = entry[kCGWindowBounds as String]
+                    as? NSDictionary,
+                  let frame = CGRect(dictionaryRepresentation: bounds),
+                  frame.width >= 100, frame.height >= 100
+            else { return nil }
+            return frame
+        }.first
+    }
+
+    /// The screen holding most of `quartzFrame`. CGWindowList space is
+    /// top-left-origin while `NSScreen.frame` is bottom-left-origin
+    /// with the primary screen at (0,0); a window spanning displays
+    /// counts toward the side it mostly occupies.
+    private static func screen(holding quartzFrame: CGRect) -> NSScreen? {
+        guard let primary = NSScreen.screens
+            .first(where: { $0.frame.origin == .zero })
+        else { return nil }
+        let frame = CGRect(
+            x: quartzFrame.minX,
+            y: primary.frame.height - quartzFrame.maxY,
+            width: quartzFrame.width, height: quartzFrame.height)
+        return NSScreen.screens
+            .max(by: { overlap($0, with: frame) < overlap($1, with: frame) })
+            .flatMap { $0.frame.intersects(frame) ? $0 : nil }
+    }
+
+    /// Shared-area of `screen.frame` and `frame` — the tie-breaker for
+    /// a window straddling displays.
+    private static func overlap(_ screen: NSScreen, with frame: CGRect)
+        -> CGFloat
+    {
+        let hit = screen.frame.intersection(frame)
+        return hit.width * hit.height
     }
 
     /// Global→window-local mapping: a lane window's content origin sits

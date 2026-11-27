@@ -60,6 +60,13 @@ public let allDisplayChecks: [Check] = [
         try expect(!OverlayGeometry.runScreens(all: false).isEmpty)
         try expect(!OverlayGeometry.runScreens(all: true).isEmpty)
     },
+    Check("when the launch screen is resolved it is one of the attached screens") {
+        guard let screen = OverlayGeometry.launchScreen() else {
+            try expect(false, "no launch screen")
+            return
+        }
+        try expect(NSScreen.screens.contains(screen))
+    },
     Check("when the lane is built over a live screen it sits at that screen's bottom edge") {
         guard let screen = OverlayGeometry.frontmostScreen() else {
             try expect(false, "no screen attached")
