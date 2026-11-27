@@ -101,24 +101,26 @@ public let sceneKitChecks: [Check] = [
             }
             // Angled default is perspective — ortho has no
             // foreshortening, so the diagonal slid flat instead of
-            // approaching. fov = 2·atan(scale/1500) keeps the
-            // target-plane framing identical to ortho.
+            // approaching. fov = 2·atan(scale/dist) keeps the
+            // target-plane framing identical to ortho; the angled
+            // camera sits closer+lower (reach 1000, height 350,
+            // dist ≈1059.5) so the near end looms.
             try expect(!camera.usesOrthographicProjection)
-            let wantFov = CGFloat(2 * atan2(90.0, 1500.0) * 180 / .pi)
-            try expect(abs(camera.fieldOfView - wantFov) < 0.2,
+            let wantFov = CGFloat(2 * atan2(90.0, 1059.5) * 180 / .pi)
+            try expect(abs(camera.fieldOfView - wantFov) < 0.3,
                        "fov off the ortho match: \(camera.fieldOfView)")
-            // Elevated toward the viewer (+y, +z) with the default
-            // 40° azimuth swinging toward the loco's front (-x):
-            // x = 500 - 1200·sin(40°), z = 1200·cos(40°); pitched down,
-            // yawed, level horizon (no roll).
+            // Low trackside position with the default 55° azimuth
+            // swinging toward the loco's front (-x):
+            // x = 500 - 1000·sin(55°), y = lane centre + 350,
+            // z = 1000·cos(55°); pitched down, yawed, level horizon.
             try expect(camNode.position.x < 500,
                        "camera did not swing toward -x: \(camNode.position)")
-            try expect(camNode.position.y == 990)
-            try expect(abs(camNode.position.z - 1200 * cos(40 * .pi / 180)) < 1,
+            try expect(camNode.position.y == 440)
+            try expect(abs(camNode.position.z - 1000 * cos(55 * .pi / 180)) < 1,
                        "unexpected z reach: \(camNode.position.z)")
-            try expect(camNode.eulerAngles.x < -0.3,
+            try expect(camNode.eulerAngles.x < -0.15,
                        "camera not pitched down: \(camNode.eulerAngles)")
-            try expect(abs(abs(camNode.eulerAngles.y) - 40 * .pi / 180) < 0.05,
+            try expect(abs(abs(camNode.eulerAngles.y) - 55 * .pi / 180) < 0.05,
                        "camera yaw off the azimuth: \(camNode.eulerAngles)")
             try expect(abs(camNode.eulerAngles.z) < 0.001,
                        "camera rolled: \(camNode.eulerAngles)")

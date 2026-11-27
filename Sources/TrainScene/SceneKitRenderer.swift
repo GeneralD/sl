@@ -317,10 +317,14 @@ public final class SceneKitRenderer: Renderer {
     ///
     /// Angled runs switch to a *perspective* camera — ortho has no
     /// foreshortening, so the diagonal read as a flat slide, not an
-    /// approach (user-reported). The field of view matches the ortho
-    /// scale at the target plane (fov = 2·atan(scale/1500)), so the
-    /// mid-lane size is unchanged while the far right end shrinks
-    /// into the distance and the near left end grows past the camera.
+    /// approach (user-reported). The angled camera sits lower and
+    /// closer than the flat one — a ~19° trackside position 1059pt
+    /// out, not the overhead 1500pt crane — so the near end passes
+    /// ~700pt from the lens and the consist looms as it arrives.
+    /// The field of view matches the ortho scale at the target
+    /// plane (fov = 2·atan(scale/dist)), so the mid-lane size is
+    /// unchanged while the far right end shrinks into the distance
+    /// and the near left end grows past the camera.
     /// `orthographicScale` still tracks the taller `--angle` window
     /// for the 1:1 math above; `viewHeight` grows the frame upward so
     /// the drift fits (docs/adr/scene.md).
@@ -329,13 +333,19 @@ public final class SceneKitRenderer: Renderer {
         let camera = SCNCamera()
         let ortho = azimuth == 0
         camera.usesOrthographicProjection = ortho
+        // Flat lane: the classic overhead ortho reach. Angled: a low
+        // trackside camera — less crane shot, more rail-side loom.
+        let reach: CGFloat = ortho ? 1200 : 1000
+        let height: CGFloat = ortho ? 900 : 350
+        let dist = Double((reach * reach + height * height)
+            .squareRoot())
         if ortho {
             camera.orthographicScale = Double(frame.height / 2)
             camera.zNear = -5000
             camera.zFar = 5000
         } else {
             camera.fieldOfView = 2 * atan2(
-                Double(frame.height / 2), 1500) * 180 / .pi
+                Double(frame.height / 2), dist) * 180 / .pi
             camera.zNear = 1
             camera.zFar = 10000
         }
@@ -344,13 +354,12 @@ public final class SceneKitRenderer: Renderer {
         node.camera = camera
         let target = SCNVector3(
             Float(frame.width / 2), Float(laneHeight / 2), 0)
-        // Offset: elevation ~(0.6, 0.8) × 1500 pt; azimuth swings the
-        // horizontal reach toward -x (front) so the diagonal reads.
+        // Azimuth swings the horizontal reach toward -x (front) so
+        // the diagonal reads.
         let az = azimuth * .pi / 180
-        let reach: CGFloat = 1200
         let dx = reach * sin(az)
         let dz = reach * cos(az)
-        node.position = SCNVector3(target.x - dx, target.y + 900, dz)
+        node.position = SCNVector3(target.x - dx, target.y + height, dz)
         node.look(at: target)
         scene.rootNode.addChildNode(node)
     }
