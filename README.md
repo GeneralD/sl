@@ -14,8 +14,7 @@ punishes you inside the terminal. This one punishes you **everywhere**.
 
 Real captures, no mockups: `scripts/shot` freezes the run mid-frame and
 writes a lane-cropped strip — either a verified screen capture or, with
-`--render`, a deterministic offscreen render. More frames in
-[`docs/shots/`](docs/shots/).
+`--render`, a deterministic offscreen render.
 
 ## Install
 
