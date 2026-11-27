@@ -111,18 +111,6 @@ public let trainScaleChecks: [Check] = [
                        "3x lane gave \(big / small)x height, want ~3x")
         }
     },
-    Check("when ghost steam is emitted at a larger scale its shell widens with the train") {
-        try MainActor.assumeIsolated {
-            let small = ghostSteamEmitter(scale: 1)
-            let big = ghostSteamEmitter(scale: 3)
-            guard let sBox = small.geometry as? SCNBox,
-                  let bBox = big.geometry as? SCNBox else {
-                throw CheckFailure(message: "ghost emitters lost their shell")
-            }
-            try expect(bBox.width > sBox.width * 2.5,
-                       "ghost shell did not follow scale")
-        }
-    },
     Check("when asked for the usage it lists --scale") {
         try expect(RunSpec.usage().contains("--scale"),
                    "usage() lacks --scale")

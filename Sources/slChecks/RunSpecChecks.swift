@@ -163,8 +163,8 @@ public let runSpecChecks: [Check] = [
         }
     },
     Check("when invoked with --angle it records the camera azimuth within bounds") {
-        try expectEqual(try spec(["sl"]).viewAngle, 25)
-        try expectEqual(try spec(["sl", "--angle", "40"]).viewAngle, 40)
+        try expectEqual(try spec(["sl"]).viewAngle, 40)
+        try expectEqual(try spec(["sl", "--angle", "25"]).viewAngle, 25)
         try expectEqual(try spec(["sl", "--angle=0"]).viewAngle, 0)
         try parseFails(["sl", "--angle", "-5"])
         try parseFails(["sl", "--angle", "90"])

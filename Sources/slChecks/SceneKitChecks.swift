@@ -108,17 +108,17 @@ public let sceneKitChecks: [Check] = [
             try expect(abs(camera.fieldOfView - wantFov) < 0.2,
                        "fov off the ortho match: \(camera.fieldOfView)")
             // Elevated toward the viewer (+y, +z) with the default
-            // 25° azimuth swinging toward the loco's front (-x):
-            // x = 500 - 1200·sin(25°), z = 1200·cos(25°); pitched down,
+            // 40° azimuth swinging toward the loco's front (-x):
+            // x = 500 - 1200·sin(40°), z = 1200·cos(40°); pitched down,
             // yawed, level horizon (no roll).
             try expect(camNode.position.x < 500,
                        "camera did not swing toward -x: \(camNode.position)")
             try expect(camNode.position.y == 990)
-            try expect(abs(camNode.position.z - 1200 * cos(25 * .pi / 180)) < 1,
+            try expect(abs(camNode.position.z - 1200 * cos(40 * .pi / 180)) < 1,
                        "unexpected z reach: \(camNode.position.z)")
             try expect(camNode.eulerAngles.x < -0.3,
                        "camera not pitched down: \(camNode.eulerAngles)")
-            try expect(abs(abs(camNode.eulerAngles.y) - 25 * .pi / 180) < 0.05,
+            try expect(abs(abs(camNode.eulerAngles.y) - 40 * .pi / 180) < 0.05,
                        "camera yaw off the azimuth: \(camNode.eulerAngles)")
             try expect(abs(camNode.eulerAngles.z) < 0.001,
                        "camera rolled: \(camNode.eulerAngles)")

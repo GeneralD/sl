@@ -282,21 +282,4 @@ public let modelConsistChecks: [Check] = [
                        + "-1 rear (\(few ?? -1))")
         }
     },
-    Check("when a --model consist exits the ghost steam emitter still drops") {
-        try MainActor.assumeIsolated {
-            // The bundled loco carries a real chimney smoke anchor,
-            // so the ghost-steam gate opens on its own.
-            let runSpec = spec(["sl", "--model", "loco", "-1"])
-            let renderer = SceneKitRenderer(spec: runSpec, stripWidth: 1000)
-            let scene = (renderer.makeView(
-                in: NSRect(x: 0, y: 0, width: 1000, height: 180),
-                spec: runSpec) as? SCNView)?.scene
-            let running = renderer.step(to: 9)
-            let ghost = scene?.rootNode.childNode(
-                withName: "ghost-steam", recursively: true)
-            try expect(ghost != nil,
-                       "no ghost-steam after exit (running=\(running))")
-            try expect(!running, "consist never reported finished")
-        }
-    },
 ]

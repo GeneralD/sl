@@ -145,65 +145,6 @@ private func growController() -> SCNParticlePropertyController {
     return SCNParticlePropertyController(animation: animation)
 }
 
-/// Ghost steam: the after-image the lane keeps for ~1s after the
-/// consist clears the left edge. A broad emitter dropped where the
-/// train was — world-space (`isLocal = false`) puffs that rise, drift
-/// back along the lane and fade on their own. `scale` is the `-l`
-/// factor like the chimney smoke.
-public func ghostSteamEmitter(scale: CGFloat = 1) -> SCNNode {
-    let node = SCNNode()
-    node.name = "ghost-steam"
-
-    // A wide, flat shell: birthLocation .surface spreads puffs along
-    // the strip, so the fog reads as a trail over the lane's left
-    // end rather than a single puff.
-    let shell = SCNBox(
-        width: 240 * scale, height: 24 * scale, length: 2,
-        chamferRadius: 0)
-    let shellMaterial = SCNMaterial()
-    shellMaterial.lightingModel = .constant
-    shellMaterial.diffuse.contents = NSColor.clear
-    shellMaterial.transparency = 0
-    shell.materials = [shellMaterial]
-    node.geometry = shell
-
-    node.addParticleSystem(ghostSteam(scale: scale))
-    return node
-}
-
-/// Fog-trail tuning on the chimney smoke's skeleton: slower, larger,
-/// shorter-lived puffs so the whole trail decays inside the ~1s
-/// post-exit hold. `warmupDuration` pre-ages puffs so a `--freeze`
-/// shot at exit+0.5s still shows a developed trail.
-private func ghostSteam(scale s: CGFloat) -> SCNParticleSystem {
-    let steam = SCNParticleSystem()
-    steam.birthRate = 80
-    steam.emissionDuration = 1
-    steam.warmupDuration = 0.9
-    steam.particleLifeSpan = 1.2
-    steam.particleLifeSpanVariation = 0.3
-    steam.particleVelocity = 9
-    steam.particleVelocityVariation = 5
-    steam.emittingDirection = SCNVector3(0.5, 1, 0)
-    steam.spreadingAngle = 40
-    steam.dampingFactor = 0.6
-    steam.particleColor = NSColor(calibratedWhite: 0.78, alpha: 1)
-    steam.particleColorVariation = SCNVector4(0.05, 0.05, 0.05, 0.1)
-    steam.particleSize = 16 * s
-    steam.particleSizeVariation = 6 * s
-    steam.particleImage = smokePuff()
-    steam.blendMode = .alpha
-    steam.sortingMode = .distance
-    steam.isLightingEnabled = false
-    steam.isLocal = false
-    steam.isAffectedByGravity = false
-    steam.propertyControllers = [
-        .opacity: fadeController(),
-        .size: growController(),
-    ]
-    return steam
-}
-
 /// A soft radial-gradient sprite in steam gray — the particle color
 /// does not reliably tint `particleImage`, so the gray is baked in.
 private func smokePuff() -> NSImage {
