@@ -42,7 +42,7 @@ public struct RunSpec: Sendable {
     /// `--angle <deg>`: camera azimuth for the 3/4 view — 0 is the
     /// classic flat side-on lane; the default swings the camera
     /// toward the loco's front so it runs diagonally on screen.
-    public var viewAngle: Double = 25
+    public var viewAngle: Double = 40
 
     public var stealth: Bool = false
 
@@ -100,7 +100,7 @@ public extension RunSpec {
           --freeze SEC  render one frozen frame and hold
           --duration SEC  cap the run at SEC seconds
           --scale F     train size multiplier (default 1)
-          --angle DEG   camera azimuth: 0 = flat side view (default 25)
+          --angle DEG   camera azimuth: 0 = flat side view (default 40)
           --stealth     hide from screen sharing
           --version     print version
         """

@@ -35,7 +35,7 @@ running, tap formula `sl3d` awaiting its sha256.
 
 ## Bold additions shipped
 
-- Dock hop (#28) · ghost steam (#29)
+- Dock hop (#28) · ghost steam (#29, since removed — see [ghost-out])
 
 ## Recent decisions (3)
 

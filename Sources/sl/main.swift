@@ -28,11 +28,10 @@ private final class OverlayDriver: FrameDriver {
     private var fading = false
     private var lastFrameT: TimeInterval?
 
-    /// `duration` covers the post-exit hold and the fade too: the
-    /// trail keeps the scene alive ~1s past exit and the fade needs
-    /// its 0.2s on top before the run may close.
+    /// `duration` covers the fade too: the fade needs its 0.2s on
+    /// top of the crossing before the run may close.
     var duration: TimeInterval {
-        base.duration + base.postExitHold + Hardening.fadeOutDuration
+        base.duration + Hardening.fadeOutDuration
     }
 
     init(base: any FrameDriver, audio: AudioEngine?, ui: RunUI) {
@@ -58,12 +57,9 @@ private final class OverlayDriver: FrameDriver {
             }
             let running = self.base.onFrame(t)
             self.audio?.update(t: t, finished: !running)
-            // Ghost steam: the scene holds after the consist clears
-            // the lane so the smoke after-image dissipates; the fade
-            // (finish) waits for the trail AND the whistle tail.
-            let trail = self.base.postExitRemaining(at: t)
+            // The fade (finish) waits for the whistle tail too.
             let tail = self.audio?.tailRemaining(t: t) ?? 0
-            guard running || trail > 0 || tail > 0 else {
+            guard running || tail > 0 else {
                 self.ui.fade = Hardening.FadeOut()
                 self.fading = true
                 return true
@@ -74,12 +70,6 @@ private final class OverlayDriver: FrameDriver {
 
     func render(at t: TimeInterval) {
         base.render(at: t)
-    }
-
-    var postExitHold: TimeInterval { base.postExitHold }
-
-    func postExitRemaining(at t: TimeInterval) -> TimeInterval {
-        base.postExitRemaining(at: t)
     }
 }
 
@@ -96,12 +86,6 @@ private struct RendererDriver: FrameDriver {
 
     func render(at t: TimeInterval) {
         renderer.render(at: t)
-    }
-
-    var postExitHold: TimeInterval { renderer.postExitHold }
-
-    func postExitRemaining(at t: TimeInterval) -> TimeInterval {
-        renderer.postExitRemaining(at: t)
     }
 }
 

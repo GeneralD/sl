@@ -16,8 +16,7 @@ public final class SceneKitRenderer: Renderer {
     private let trajectory: Trajectory
     private let model: ModelAsset.Loaded?
     private let locoScale: CGFloat
-    /// Lane strip height in points — the ghost-steam clamps are
-    /// fractions of the design lane, so they follow the real strip.
+    /// Lane strip height in points.
     private let laneHeight: CGFloat
     private weak var train: SCNNode?
     private var locoMaterials: [SCNMaterial] = []
@@ -41,11 +40,6 @@ public final class SceneKitRenderer: Renderer {
     /// `-a` panic: the loco rocks slightly while screamers pop.
     private var rocking = false
     private weak var scene: SCNScene?
-    /// Ghost steam: the emitter dropped at the exit frame, the scene
-    /// it hangs off, and when the consist cleared the lane.
-    private var ghost: SCNNode?
-    private var ghostSystem: SCNParticleSystem?
-    private var exitedAt: TimeInterval?
     /// The train node's resting scale — `--model` wrappers carry a
     /// normalization scale and `-l` multiplies it, so `-d`'s pulse
     /// scales on top of this instead of replacing it.
@@ -66,13 +60,6 @@ public final class SceneKitRenderer: Renderer {
 
     /// `-l` miniature factor; multiplies the lane scale like `--scale`.
     private static let littleScale: CGFloat = 0.6
-
-    /// Seconds the window holds after the consist clears the lane so
-    /// the ghost-steam trail can dissipate before the finish fade.
-    public static let ghostSteamDuration: TimeInterval = 1.0
-    /// How long the dropped emitter keeps firing after exit — beyond
-    /// this the puffs only decay.
-    private static let ghostEmitWindow: TimeInterval = 0.3
 
     public let duration: TimeInterval
 
@@ -272,48 +259,6 @@ public final class SceneKitRenderer: Renderer {
         if let disco {
             applyDisco(t: t, timeline: disco)
         }
-        guard pose.finished else { return }
-        dropGhostSteam(at: t)
-        stopGhostEmission(at: t)
-    }
-
-    /// First finished frame: drop a ghost-steam emitter where the
-    /// chimney smoke last was, and stamp the exit time the post-exit
-    /// hold counts down from. No `smoke` node → no trail: ghost steam
-    /// is the last chimney puffs lingering, so a loco without a smoke
-    /// anchor must not spawn fog out of thin air at the lane's edge.
-    private func dropGhostSteam(at t: TimeInterval) {
-        if exitedAt == nil { exitedAt = t }
-        guard ghost == nil, let scene,
-              let smoke = train?.childNode(
-                  withName: "smoke", recursively: true)
-        else { return }
-        var origin = smoke.worldPosition
-        // `finished` flips only after the whole consist is past the
-        // left edge — the raw origin is already offscreen and its
-        // puffs would die before drifting into view. Slide the
-        // emitter onto the lane's left end, where the train was last
-        // seen, and lift it into the lane band so the fog hangs over
-        // the lane. (The emitter's 240-wide shell spans x±120.)
-        // The y clamps are fractions of the design lane — the strip
-        // is taller now, so they scale with `laneHeight`.
-        origin.x = min(max(origin.x, 160), 200)
-        let design = OverlayGeometry.referenceLaneHeight
-        origin.y = min(max(origin.y,
-            laneHeight * 40 / design), laneHeight * 160 / design)
-        let node = ghostSteamEmitter(scale: locoScale)
-        node.position = origin
-        scene.rootNode.addChildNode(node)
-        ghost = node
-        ghostSystem = node.particleSystems?.first
-    }
-
-    /// The emitter fires only through `ghostEmitWindow` after exit;
-    /// past that the puffs decay on their own particleLifeSpan.
-    private func stopGhostEmission(at t: TimeInterval) {
-        guard let exitedAt, let ghostSystem,
-              t - exitedAt > Self.ghostEmitWindow else { return }
-        ghostSystem.birthRate = 0
     }
 
     /// `-d` strobe: hue-cycled body color, lights alternating between
@@ -338,20 +283,6 @@ public final class SceneKitRenderer: Renderer {
     public func step(to t: TimeInterval) -> Bool {
         render(at: t)
         return !trajectory.pose(at: t).finished
-    }
-
-    /// The ghost-steam hold: the run loop keeps the window up this
-    /// long past exit so the trail dissipates before the fade. A loco
-    /// with no smoke anchor drops no trail, so there is nothing to
-    /// hold for — hand the fade straight back.
-    public var postExitHold: TimeInterval {
-        train?.childNode(withName: "smoke", recursively: true) != nil
-            ? Self.ghostSteamDuration : 0
-    }
-
-    public func postExitRemaining(at t: TimeInterval) -> TimeInterval {
-        guard let exitedAt else { return 0 }
-        return max(0, postExitHold - (t - exitedAt))
     }
 
     private func addAmbientLight(to scene: SCNScene) {
