@@ -12,8 +12,6 @@ punishes you inside the terminal. This one punishes you **everywhere**.
 
 ## Demo
 
-![the train crossing the desktop, four frozen frames](assets/demo.gif)
-
 Real captures, no mockups: `scripts/shot` freezes the run mid-frame and
 writes a lane-cropped strip — either a verified screen capture or, with
 `--render`, a deterministic offscreen render. More frames in
