@@ -37,7 +37,12 @@ public enum CheckRunner {
                 print("ok \(i + 1) - \(check.name)")
             } catch {
                 failures += 1
-                print("not ok \(i + 1) - \(check.name) — \(error)")
+                // Failures go to stderr too: CI logs can drop buffered
+                // stdout, which hides exactly the lines that matter.
+                let line = "not ok \(i + 1) - \(check.name) — \(error)"
+                print(line)
+                FileHandle.standardError.write(
+                    Data((line + "\n").utf8))
             }
         }
         print("\(checks.count - failures)/\(checks.count) checks passed")
