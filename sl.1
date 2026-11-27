@@ -103,6 +103,13 @@ low trackside perspective camera, so the far end of the lane shrinks
 into the distance and the consist looms as it approaches;
 .Ar 0
 keeps the classic flat side-on ortho lane. Valid range is 0-75.
+.It Fl -color Ar name Ns | Ns Ar degrees
+Respray the consist. A color name (red, crimson, orange, yellow,
+green, teal, blue, indigo, purple, pink, black, gray) or a hue in
+degrees 0-359 repaints every material saturated enough to read as
+paintwork — coal, metals and cab interior keep their finish, and a
+hue keeps each part's own shading. `black` and `gray` desaturate for
+a neutral finish.
 .It Fl -stealth
 Stay invisible: the train is hidden from screenshots and screen
 recording.

@@ -158,9 +158,20 @@ public let runSpecChecks: [Check] = [
         let text = RunSpec.usage()
         for flag in ["-a", "-d", "-e", "-F", "-l", "-s", "-v", "-w",
                      "-<n>", "--cars", "--all", "--model", "--freeze",
-                     "--angle", "--stealth"] {
+                     "--angle", "--color", "--stealth"] {
             try expect(text.contains(flag), "usage() lacks \(flag)")
         }
+    },
+    Check("when invoked with --color it records the livery") {
+        try expectEqual(try spec(["sl", "--color", "blue"]).livery?.hue,
+                        0.60)
+        try expectEqual(try spec(["sl", "--color=210"]).livery?.hue,
+                        210.0 / 360)
+        let plain = try spec(["sl"])
+        try expect(plain.livery == nil)
+        try parseFails(["sl", "--color", "chartreuse"])
+        try parseFails(["sl", "--color", "360"])
+        try parseFails(["sl", "--color"])
     },
     Check("when invoked with --angle it records the camera azimuth within bounds") {
         try expectEqual(try spec(["sl"]).viewAngle, 55)

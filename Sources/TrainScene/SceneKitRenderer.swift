@@ -1,4 +1,5 @@
 import AppKit
+import CoreImage
 import OverlayKit
 import SceneKit
 import SLCore
@@ -23,6 +24,8 @@ public final class SceneKitRenderer: Renderer {
     private weak var ambientNode: SCNNode?
     private weak var keyNode: SCNNode?
     private var disco: DiscoTimeline?
+    /// Shared filter context for `--color` texture resprays.
+    private lazy var ciContext = CIContext()
     /// Consist center offset from the loco pivot: cars all trail +x, so
     /// the coupled train's midpoint sits half the car chain past the
     /// loco's own center. `render` subtracts this so `pose.x` keeps
@@ -204,6 +207,7 @@ public final class SceneKitRenderer: Renderer {
         self.train = train
         baseScale = train.scale
         locoMaterials = Self.materials(of: train)
+        if let livery = spec.livery { applyLivery(livery) }
         // Wheelwork reads the wrapper's final scale, so it must init
         // after `locoScale` landed and the node sits in the scene.
         if let model, model.node === train {
@@ -259,6 +263,124 @@ public final class SceneKitRenderer: Renderer {
         if let disco {
             applyDisco(t: t, timeline: disco)
         }
+    }
+
+    /// `--color` respray: repaint materials whose own color is
+    /// saturated enough to read as paintwork — neutral parts (coal,
+    /// metals, cab interior, glazing) keep their finish. Each Livery
+    /// component overrides independently: named hues keep the part's
+    /// own saturation and brightness so the livery's shading
+    /// survives; `black`/`gray` pull saturation for a neutral finish.
+    /// Textured materials get the same treatment through a hue-rotate
+    /// of the atlas — grays have no hue, so coal and metal stay put
+    /// while the paint moves. One-shot at scene build — `-d`'s
+    /// per-frame strobe simply overrides the colors again while it
+    /// runs.
+    private func applyLivery(_ livery: RunSpec.Livery) {
+        var cache: [ObjectIdentifier: CGImage] = [:]
+        for material in locoMaterials {
+            guard let contents = material.diffuse.contents
+            else { continue }
+            if let color = contents as? NSColor {
+                resprayColor(material, color, livery)
+            } else if let object = contents as? AnyObject {
+                let key = ObjectIdentifier(object)
+                if cache[key] == nil,
+                   let input = ciImage(of: contents) {
+                    cache[key] = resprayed(input, to: livery)
+                }
+                if let atlas = cache[key] {
+                    material.diffuse.contents = atlas
+                }
+            }
+        }
+    }
+
+    /// Solid-color paintwork: absolute overrides per component, gated
+    /// to colors saturated enough to read as paint.
+    private func resprayColor(
+        _ material: SCNMaterial, _ color: NSColor,
+        _ livery: RunSpec.Livery
+    ) {
+        guard let hsb = color.usingColorSpace(.deviceRGB)
+        else { return }
+        var h: CGFloat = 0, s: CGFloat = 0, b: CGFloat = 0
+        var a: CGFloat = 0
+        hsb.getHue(&h, saturation: &s, brightness: &b, alpha: &a)
+        guard s >= 0.2, b >= 0.15 else { return }
+        // Same floor as the texture path: a named hue also lifts
+        // muted paint so the respray reads.
+        let sat = livery.saturation.map { CGFloat($0) }
+            ?? (livery.hue != nil ? max(s, 0.68) : s)
+        material.diffuse.contents = NSColor(
+            hue: livery.hue.map { CGFloat($0) } ?? h,
+            saturation: sat,
+            brightness: livery.brightness.map { CGFloat($0) } ?? b,
+            alpha: a)
+    }
+
+    /// Diffuse contents → CIImage. USDZ keeps its texture atlas inside
+    /// the archive: the contents URL carries `?offset=&size=` byte
+    /// ranges, which `CIImage(contentsOf:)` cannot open — slice the
+    /// mapped file instead. Plain file URLs, CGImages and NSImages
+    /// cover the other model formats.
+    private func ciImage(of contents: Any) -> CIImage? {
+        switch contents {
+        case let url as URL:
+            guard let range = usdzByteRange(of: url)
+            else { return CIImage(contentsOf: url) }
+            guard let data = try? Data(
+                contentsOf: URL(fileURLWithPath: url.path),
+                options: .alwaysMapped),
+                range.offset >= 0, range.size > 0,
+                range.offset + range.size <= data.count
+            else { return nil }
+            return CIImage(data: data.subdata(
+                in: range.offset..<(range.offset + range.size)))
+        case let image as CGImage:
+            return CIImage(cgImage: image)
+        case let image as NSImage:
+            return image.cgImage(forProposedRect: nil, context: nil,
+                                 hints: nil).map(CIImage.init(cgImage:))
+        default:
+            return nil
+        }
+    }
+
+    /// Parses the `?offset=&size=` suffix USDZ gives embedded
+    /// textures. Returns nil for ordinary file URLs.
+    private func usdzByteRange(of url: URL) -> (offset: Int, size: Int)? {
+        guard let items = URLComponents(
+            url: url, resolvingAgainstBaseURL: false)?.queryItems,
+            let offset = items.first(where: { $0.name == "offset" })?
+                .value.flatMap(Int.init),
+            let size = items.first(where: { $0.name == "size" })?
+                .value.flatMap(Int.init)
+        else { return nil }
+        return (offset, size)
+    }
+
+    /// Monotone-wash a texture atlas toward the livery:
+    /// `CIColorMonochrome` folds the atlas's luminance shading into
+    /// shades of the target colour — brightness detail (weathering,
+    /// lining, wear) survives while every pixel takes the paint hue.
+    /// Coal and metal join the same wash, which reads as overspray.
+    private func resprayed(
+        _ input: CIImage, to livery: RunSpec.Livery
+    ) -> CGImage? {
+        let paint = NSColor(
+            hue: CGFloat(livery.hue ?? 0),
+            saturation: CGFloat(livery.saturation ?? 0.72),
+            brightness: CGFloat(livery.brightness ?? 0.62), alpha: 1)
+        guard let out = CIFilter(name: "CIColorMonochrome",
+                                 parameters: [
+                                     kCIInputImageKey: input,
+                                     kCIInputColorKey:
+                                         CIColor(cgColor: paint.cgColor),
+                                     kCIInputIntensityKey: 1.0,
+                                 ])?.outputImage
+        else { return nil }
+        return ciContext.createCGImage(out, from: input.extent)
     }
 
     /// `-d` strobe: hue-cycled body color, lights alternating between

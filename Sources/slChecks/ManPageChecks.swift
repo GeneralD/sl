@@ -15,7 +15,7 @@ public let manPageChecks: [Check] = [
     Check("when the man page is read it documents every long flag") {
         let text = try manPageText()
         for flag in ["help", "version", "model", "all", "freeze", "duration",
-                     "scale", "stealth", "cars", "angle"] {
+                     "scale", "stealth", "cars", "angle", "color"] {
             try expect(text.contains("Fl -\(flag)"), "missing --\(flag)")
         }
     },
