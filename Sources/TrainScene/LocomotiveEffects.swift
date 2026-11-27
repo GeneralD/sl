@@ -108,9 +108,9 @@ private func chimneySmoke(scale s: CGFloat) -> SCNParticleSystem {
     smoke.particleLifeSpan = 3.6
     smoke.particleLifeSpanVariation = 0.9
     smoke.particleVelocity = 22
-    smoke.particleVelocityVariation = 8
+    smoke.particleVelocityVariation = 10
     smoke.emittingDirection = SCNVector3(0.2, 1, 0)
-    smoke.spreadingAngle = 30
+    smoke.spreadingAngle = 40
     smoke.dampingFactor = 0.35
     // Buoyancy: the column keeps climbing as it disperses.
     smoke.acceleration = SCNVector3(0, 5, 0)
@@ -146,13 +146,14 @@ private func fadeController() -> SCNParticlePropertyController {
 }
 
 /// Puffs billow as they rise — born already readable (factor 1.0 of a
-/// 14pt sprite, not a 6pt speck), a fast early bloom, then the slow
-/// drift-apart. The size controller's animation values multiply
+/// 14pt sprite, not a 6pt speck), a fast early bloom, then keeps
+/// swelling wide as it thins (user asked for more spread on the
+/// climb). The size controller's animation values multiply
 /// `particleSize` (verified against `SCNRenderer` output), so these
 /// are growth factors, not point sizes.
 private func growController() -> SCNParticlePropertyController {
     let animation = CAKeyframeAnimation()
-    animation.values = [1.0, 1.5, 2.5, 3.4].map {
+    animation.values = [1.0, 1.6, 2.9, 4.1].map {
         NSNumber(value: Double($0))
     }
     animation.keyTimes = [0.0, 0.15, 0.6, 1.0]
