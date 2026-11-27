@@ -103,20 +103,20 @@ public let sceneKitChecks: [Check] = [
             // foreshortening, so the diagonal slid flat instead of
             // approaching. fov = 2·atan(scale/dist) keeps the
             // target-plane framing identical to ortho; the angled
-            // camera sits closer+lower (reach 1000, height 350,
-            // dist ≈1059.5) so the near end looms.
+            // camera sits closer+lower (reach 840, height 170,
+            // dist ≈857) so the near end looms.
             try expect(!camera.usesOrthographicProjection)
-            let wantFov = CGFloat(2 * atan2(90.0, 1059.5) * 180 / .pi)
+            let wantFov = CGFloat(2 * atan2(90.0, 857.0) * 180 / .pi)
             try expect(abs(camera.fieldOfView - wantFov) < 0.3,
                        "fov off the ortho match: \(camera.fieldOfView)")
             // Low trackside position with the default 55° azimuth
             // swinging toward the loco's front (-x):
-            // x = 500 - 1000·sin(55°), y = lane centre + 350,
-            // z = 1000·cos(55°); pitched down, yawed, level horizon.
+            // x = 500 - 840·sin(55°), y = lane centre + 170,
+            // z = 840·cos(55°); pitched down, yawed, level horizon.
             try expect(camNode.position.x < 500,
                        "camera did not swing toward -x: \(camNode.position)")
-            try expect(camNode.position.y == 440)
-            try expect(abs(camNode.position.z - 1000 * cos(55 * .pi / 180)) < 1,
+            try expect(camNode.position.y == 260)
+            try expect(abs(camNode.position.z - 840 * cos(55 * .pi / 180)) < 1,
                        "unexpected z reach: \(camNode.position.z)")
             try expect(camNode.eulerAngles.x < -0.15,
                        "camera not pitched down: \(camNode.eulerAngles)")
@@ -427,6 +427,51 @@ public let sceneKitChecks: [Check] = [
             try expect(repainted > 0, "no saturated materials resprayed")
             try expect(offHue.isEmpty, "hue missed paint: \(offHue)")
             try expect(washed > 0, "no texture atlases resprayed")
+        }
+    },
+    Check("when --color black applies it goes matte black with gold accent fittings") {
+        try MainActor.assumeIsolated {
+            let liverySpec = spec(["sl", "--color", "black"])
+            let renderer = SceneKitRenderer(
+                spec: liverySpec, stripWidth: 1000)
+            guard let scene = sceneKitScene(renderer, spec: liverySpec)
+            else {
+                try expect(false, "renderer produced no scene")
+                return
+            }
+            var gold = 0, mattedGold = 0, mattified = 0
+            scene.rootNode.enumerateChildNodes { node, _ in
+                for m in node.geometry?.materials ?? [] {
+                    let specBri = (m.specular.contents as? NSColor)?
+                        .usingColorSpace(.deviceRGB)?.brightnessComponent
+                    let dimmed = (specBri ?? 1) < 0.15
+                        && m.shininess < 0.5
+                    // Washed atlas → CGImage: the body itself.
+                    if let object = m.diffuse.contents as? AnyObject,
+                       CFGetTypeID(object) == CGImage.typeID {
+                        if dimmed { mattified += 1 }
+                        continue
+                    }
+                    guard let color = m.diffuse.contents as? NSColor,
+                          let hsb = color.usingColorSpace(.deviceRGB)
+                    else { continue }
+                    var h: CGFloat = 0, s: CGFloat = 0, b: CGFloat = 0
+                    var a: CGFloat = 0
+                    hsb.getHue(&h, saturation: &s, brightness: &b,
+                               alpha: &a)
+                    guard s >= 0.2, b >= 0.15 else { continue }
+                    if abs(h - 0.105) < 0.02 {
+                        gold += 1
+                        if dimmed { mattedGold += 1 }
+                    } else if dimmed {
+                        mattified += 1
+                    }
+                }
+            }
+            try expect(gold > 0, "no orange-family fittings went gold")
+            try expect(mattedGold == 0,
+                       "accent fittings got mattified: \(mattedGold)")
+            try expect(mattified > 0, "no body paint went matte")
         }
     },
     Check("when --color is absent the consist keeps its factory finish") {

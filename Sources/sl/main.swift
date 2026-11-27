@@ -26,6 +26,7 @@ private final class OverlayDriver: FrameDriver {
     private let audio: AudioEngine?
     private let ui: RunUI
     private var fading = false
+    private var fadeIn: TimeInterval = 0
     private var lastFrameT: TimeInterval?
 
     /// `duration` covers the fade too: the fade needs its 0.2s on
@@ -55,6 +56,15 @@ private final class OverlayDriver: FrameDriver {
                 self.ui.fade = f
                 return !f.isFinished
             }
+            // Launch fade-in: the windows ordered in at alpha 0 so the
+            // renderer's first unpainted frame can't flash on screen.
+            if self.fadeIn < Hardening.fadeInDuration {
+                self.fadeIn = min(
+                    self.fadeIn + dt, Hardening.fadeInDuration)
+                let alpha = CGFloat(
+                    self.fadeIn / Hardening.fadeInDuration)
+                for window in self.ui.windows { window.alphaValue = alpha }
+            }
             let running = self.base.onFrame(t)
             self.audio?.update(t: t, finished: !running)
             // The fade (finish) waits for the whistle tail too.
@@ -68,8 +78,11 @@ private final class OverlayDriver: FrameDriver {
         }
     }
 
+    /// `--freeze` renders one frame and holds: reveal immediately —
+    /// the fade-in ramp only runs on live frames.
     func render(at t: TimeInterval) {
         base.render(at: t)
+        for window in ui.windows { window.alphaValue = 1 }
     }
 }
 
@@ -224,6 +237,7 @@ let code = MainActor.assumeIsolated { () -> Int32 in
             node.frame = NSRect(origin: .zero, size: TrainGlyph.size)
             content.addSubview(node)
             window.contentView = content
+            window.alphaValue = 0
             window.orderFrontRegardless()
             window.setStealth(spec.stealth)
             ui.windows.append(window)
@@ -247,6 +261,7 @@ let code = MainActor.assumeIsolated { () -> Int32 in
         window.contentView = renderer.makeView(
             in: NSRect(origin: .zero, size: window.frame.size),
             spec: spec)
+        window.alphaValue = 0
         window.orderFrontRegardless()
         window.setStealth(spec.stealth)
         ui.windows.append(window)

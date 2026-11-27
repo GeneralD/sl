@@ -265,6 +265,11 @@ public final class SceneKitRenderer: Renderer {
         }
     }
 
+    /// Which repaint a material took: none (neutral, skipped), body
+    /// paint, or the livery's accent — accents keep their specular
+    /// pop (polished metal on matte paint), body and texture go dead.
+    private enum Repaint { case none, body, accent }
+
     /// `--color` respray: repaint materials whose own color is
     /// saturated enough to read as paintwork — neutral parts (coal,
     /// metals, cab interior, glazing) keep their finish. Each Livery
@@ -282,7 +287,10 @@ public final class SceneKitRenderer: Renderer {
             guard let contents = material.diffuse.contents
             else { continue }
             if let color = contents as? NSColor {
-                resprayColor(material, color, livery)
+                if resprayColor(material, color, livery) == .body,
+                   livery.matte {
+                    mattify(material)
+                }
             } else if let object = contents as? AnyObject {
                 let key = ObjectIdentifier(object)
                 if cache[key] == nil,
@@ -291,23 +299,34 @@ public final class SceneKitRenderer: Renderer {
                 }
                 if let atlas = cache[key] {
                     material.diffuse.contents = atlas
+                    if livery.matte { mattify(material) }
                 }
             }
         }
     }
 
     /// Solid-color paintwork: absolute overrides per component, gated
-    /// to colors saturated enough to read as paint.
+    /// to colors saturated enough to read as paint. The livery's
+    /// accent band (the orange-family fittings) repaints to the
+    /// accent colour instead of the body — gold domes on matte black.
     private func resprayColor(
         _ material: SCNMaterial, _ color: NSColor,
         _ livery: RunSpec.Livery
-    ) {
+    ) -> Repaint {
         guard let hsb = color.usingColorSpace(.deviceRGB)
-        else { return }
+        else { return .none }
         var h: CGFloat = 0, s: CGFloat = 0, b: CGFloat = 0
         var a: CGFloat = 0
         hsb.getHue(&h, saturation: &s, brightness: &b, alpha: &a)
-        guard s >= 0.2, b >= 0.15 else { return }
+        guard s >= 0.2, b >= 0.15 else { return .none }
+        if let accent = livery.accent, accent.hueRange.contains(h) {
+            material.diffuse.contents = NSColor(
+                hue: CGFloat(accent.hue),
+                saturation: CGFloat(accent.saturation),
+                brightness: CGFloat(accent.brightness),
+                alpha: a)
+            return .accent
+        }
         // Same floor as the texture path: a named hue also lifts
         // muted paint so the respray reads.
         let sat = livery.saturation.map { CGFloat($0) }
@@ -317,6 +336,14 @@ public final class SceneKitRenderer: Renderer {
             saturation: sat,
             brightness: livery.brightness.map { CGFloat($0) } ?? b,
             alpha: a)
+        return .body
+    }
+
+    /// Stove-black finish: kill the specular response so the repaint
+    /// reads as dead paint, not satin vinyl.
+    private func mattify(_ material: SCNMaterial) {
+        material.specular.contents = NSColor(white: 0.04, alpha: 1)
+        material.shininess = 0.1
     }
 
     /// Diffuse contents → CIImage. USDZ keeps its texture atlas inside
@@ -440,9 +467,9 @@ public final class SceneKitRenderer: Renderer {
     /// Angled runs switch to a *perspective* camera — ortho has no
     /// foreshortening, so the diagonal read as a flat slide, not an
     /// approach (user-reported). The angled camera sits lower and
-    /// closer than the flat one — a ~19° trackside position 1059pt
+    /// closer than the flat one — a ~20° trackside position ~858pt
     /// out, not the overhead 1500pt crane — so the near end passes
-    /// ~700pt from the lens and the consist looms as it arrives.
+    /// ~510pt from the lens and the consist looms as it arrives.
     /// The field of view matches the ortho scale at the target
     /// plane (fov = 2·atan(scale/dist)), so the mid-lane size is
     /// unchanged while the far right end shrinks into the distance
@@ -456,9 +483,10 @@ public final class SceneKitRenderer: Renderer {
         let ortho = azimuth == 0
         camera.usesOrthographicProjection = ortho
         // Flat lane: the classic overhead ortho reach. Angled: a low
-        // trackside camera — less crane shot, more rail-side loom.
-        let reach: CGFloat = ortho ? 1200 : 1000
-        let height: CGFloat = ortho ? 900 : 350
+        // trackside camera pulled close to the rail — the near end
+        // passes ~500pt out and looms hard over the lens.
+        let reach: CGFloat = ortho ? 1200 : 840
+        let height: CGFloat = ortho ? 900 : 170
         let dist = Double((reach * reach + height * height)
             .squareRoot())
         if ortho {

@@ -53,6 +53,21 @@ public struct RunSpec: Sendable {
         public var saturation: Double?
         public var brightness: Double?
 
+        /// Two-tone paintwork: colored materials whose own hue falls in
+        /// `hueRange` repaint to this accent instead of the body colour
+        /// — matte-black boiler with gold domes and bands.
+        public struct Accent: Sendable, Equatable {
+            public var hue: Double
+            public var saturation: Double
+            public var brightness: Double
+            /// Material hues (0–1 wheel) inside this band take the accent.
+            public var hueRange: ClosedRange<Double>
+        }
+        public var accent: Accent? = nil
+        /// Matte finish: resprayed materials lose their specular
+        /// response, so `black` reads as stove paint, not vinyl.
+        public var matte: Bool = false
+
         /// Named resprays: hue names keep each part's own
         /// saturation/brightness; the neutrals pull them instead.
         public static let named: [String: Livery] = [
@@ -66,7 +81,12 @@ public struct RunSpec: Sendable {
             "indigo":  Livery(hue: 0.72),
             "purple":  Livery(hue: 0.78),
             "pink":    Livery(hue: 0.92),
-            "black":   Livery(saturation: 0.05, brightness: 0.16),
+            "black":   Livery(
+                saturation: 0.05, brightness: 0.16,
+                accent: Accent(hue: 0.105, saturation: 0.72,
+                               brightness: 0.85,
+                               hueRange: 0.0...0.17),
+                matte: true),
             "gray":    Livery(saturation: 0.03, brightness: 0.45),
             "grey":    Livery(saturation: 0.03, brightness: 0.45),
         ]

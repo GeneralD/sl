@@ -15,6 +15,12 @@ public enum Hardening {
     /// Seconds the overlay takes to fade before the run closes.
     public static let fadeOutDuration: TimeInterval = 0.2
 
+    /// Seconds the overlay fades in on launch: the window orders in
+    /// invisible so SceneKit's first unpainted drawable can never
+    /// flash on screen, then ramps up while the train is still
+    /// off-screen entering.
+    public static let fadeInDuration: TimeInterval = 0.25
+
     /// One claimed concurrency slot. `release` is idempotent and uses
     /// only async-signal-safe calls so the SIGTERM path can run it.
     public struct TrainSlot: Sendable {

@@ -95,24 +95,28 @@ private func smokeEmitter(scale s: CGFloat) -> SCNNode {
 /// Light-gray puffs that rise, drift backwards (+x, opposite the
 /// -x run direction) and fade out — world-space (`isLocal = false`)
 /// so they linger where emitted instead of riding the loco.
+/// The billow: big soft puffs on a slow buoyant rise with a wide
+/// spread — "ぼわっ" reads as a rolling cloud, not a thin jet.
 private func chimneySmoke(scale s: CGFloat) -> SCNParticleSystem {
     let smoke = SCNParticleSystem()
-    smoke.birthRate = 14
+    smoke.birthRate = 18
     // birthRate counts particles per emissionDuration, and `loops`
-    // (default on) re-fires every second — a continuous ~14 puffs/s.
+    // (default on) re-fires every second — a continuous ~18 puffs/s.
     smoke.emissionDuration = 1
     smoke.warmupDuration = 1.4    // puffs already aloft in frame one
-    smoke.particleLifeSpan = 2.6
-    smoke.particleLifeSpanVariation = 0.7
-    smoke.particleVelocity = 18
-    smoke.particleVelocityVariation = 6
-    smoke.emittingDirection = SCNVector3(0.35, 1, 0)
-    smoke.spreadingAngle = 28
-    smoke.dampingFactor = 0.5
+    smoke.particleLifeSpan = 3.6
+    smoke.particleLifeSpanVariation = 0.9
+    smoke.particleVelocity = 15
+    smoke.particleVelocityVariation = 7
+    smoke.emittingDirection = SCNVector3(0.3, 1, 0)
+    smoke.spreadingAngle = 42
+    smoke.dampingFactor = 0.35
+    // Buoyancy: the column keeps climbing as it disperses.
+    smoke.acceleration = SCNVector3(0, 4, 0)
     smoke.particleColor = NSColor(calibratedWhite: 0.72, alpha: 1)
     smoke.particleColorVariation = SCNVector4(0.06, 0.06, 0.06, 0.15)
-    smoke.particleSize = 8 * s
-    smoke.particleSizeVariation = 3 * s
+    smoke.particleSize = 12 * s
+    smoke.particleSizeVariation = 4 * s
     smoke.particleImage = smokePuff()
     smoke.blendMode = .alpha
     smoke.sortingMode = .distance
@@ -139,7 +143,7 @@ private func fadeController() -> SCNParticlePropertyController {
 /// these are growth factors, not point sizes.
 private func growController() -> SCNParticlePropertyController {
     let animation = CAKeyframeAnimation()
-    animation.values = [0.6, 1.0, 1.8, 2.6].map {
+    animation.values = [0.5, 1.0, 2.1, 3.4].map {
         NSNumber(value: Double($0))
     }
     return SCNParticlePropertyController(animation: animation)
