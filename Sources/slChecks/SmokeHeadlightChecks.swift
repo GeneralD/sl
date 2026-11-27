@@ -31,6 +31,14 @@ private func keyframeValues(_ controller: SCNParticlePropertyController?)
     return values.map(\.doubleValue)
 }
 
+private func keyframeTimes(_ controller: SCNParticlePropertyController?)
+    -> [Double] {
+    guard let animation = controller?.animation as? CAKeyframeAnimation,
+          let keyTimes = animation.keyTimes as? [NSNumber]
+    else { return [] }
+    return keyTimes.map(\.doubleValue)
+}
+
 /// A stand-in for the named-node contract `attachLocomotiveEffects`
 /// reads: `chimney`, `headlight` and `cab` children with a material —
 /// the procedural loco that used to provide them is gone (issue #78),
@@ -90,9 +98,20 @@ public let smokeHeadlightChecks: [Check] = [
             // Peak opacity stays low — the lane must not opaque over.
             try expect((opacity.max() ?? 1) <= 0.7,
                        "smoke too opaque: peak \(opacity.max() ?? -1)")
-            try expect(!keyframeValues(system.propertyControllers?[.size])
-                        .isEmpty,
+            // Puffs must read at the stack: near-peak opacity within
+            // the first 15% of life, not an evenly-spaced ramp that
+            // stays translucent for the first second.
+            let fadeIn = keyframeTimes(
+                system.propertyControllers?[.opacity])
+            try expect(fadeIn.count >= 2 && fadeIn[1] <= 0.15,
+                       "smoke fades in too slowly: \(fadeIn)")
+            let size = system.propertyControllers?[.size]
+            try expect(!keyframeValues(size).isEmpty,
                        "puffs do not grow over life")
+            // Born readable — the first size keyframe is already a
+            // full puff, not a speck that must grow into visibility.
+            try expect((keyframeValues(size).first ?? 0) >= 0.9,
+                       "puffs born too small: \(keyframeValues(size))")
         }
     },
     Check("when locomotive effects attach the headlight carries a beam cone aimed forward") {
