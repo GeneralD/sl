@@ -4,7 +4,8 @@ import SLTestKit
 /// `merge=union` in .gitattributes keeps concurrent appends conflict-free.
 public enum Registry {
     public static let all: [Check] =
-        runSpecChecks
+        modelConsistChecks
+        + runSpecChecks
         + slVersionChecks
         + manPageChecks
         + audioAssetChecks
@@ -24,5 +25,4 @@ public enum Registry {
         + displayPacingChecks
         + shotEvidenceChecks
         + trainScaleChecks
-        + modelConsistChecks
 }
