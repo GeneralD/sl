@@ -19,10 +19,10 @@ public enum OverlayGeometry {
         height * laneFraction
     }
 
-    /// The camera elevation's sine (900/1500 in
+    /// The angled camera elevation's sine (350/1059 in
     /// `SceneKitRenderer.addCamera`) — the `--angle` diagonal drifts
     /// vertically across the strip by `width × slope × tan(azimuth)`.
-    public static let cameraTiltSlope: CGFloat = 0.6
+    public static let cameraTiltSlope: CGFloat = 0.33
 
     /// How far the `--angle` diagonal drifts vertically across a strip
     /// `stripWidth` points wide, in world units (== screen points at

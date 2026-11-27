@@ -147,6 +147,10 @@ private func growController() -> SCNParticlePropertyController {
 
 /// A soft radial-gradient sprite in steam gray — the particle color
 /// does not reliably tint `particleImage`, so the gray is baked in.
+/// Drawn into the inscribed oval, not the rect: `draw(in:rect)` runs
+/// the gradient out to the corners, so the edge midpoints keep ~10%
+/// alpha and every puff renders as a faint square (user-reported).
+/// The oval ends the gradient at the circle's rim — a round puff.
 private func smokePuff() -> NSImage {
     NSImage(size: NSSize(width: 64, height: 64), flipped: false) { rect in
         let gradient = NSGradient(colors: [
@@ -154,7 +158,9 @@ private func smokePuff() -> NSImage {
             NSColor(calibratedWhite: 0.68, alpha: 0.4),
             NSColor(calibratedWhite: 0.6, alpha: 0),
         ])
-        gradient?.draw(in: rect, relativeCenterPosition: .zero)
+        gradient?.draw(
+            in: NSBezierPath(ovalIn: rect),
+            relativeCenterPosition: .zero)
         return true
     }
 }
