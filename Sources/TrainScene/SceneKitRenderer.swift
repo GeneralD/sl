@@ -381,21 +381,33 @@ public final class SceneKitRenderer: Renderer {
     /// the horizontal reach toward the loco's front (-x): the consist
     /// then runs diagonally on screen and the smokebox face shows —
     /// the sketch-requested 3/4 look. 0 keeps the classic flat
-    /// side-on lane (the original task-71 framing). `look(at:)` keeps
-    /// the horizon level. `orthographicScale` stays height/2, so one
-    /// world unit stays one screen point: when `--angle` grows the
-    /// window taller than the lane (`OverlayGeometry.viewHeight`),
-    /// the extra room is simply more world above and below — the
-    /// train keeps its size, and aiming at the *lane* centre (not the
-    /// frame's) lands the diagonal midpoint mid-window
-    /// (docs/adr/scene.md).
+    /// side-on ortho lane (the original task-71 framing). `look(at:)`
+    /// keeps the horizon level.
+    ///
+    /// Angled runs switch to a *perspective* camera — ortho has no
+    /// foreshortening, so the diagonal read as a flat slide, not an
+    /// approach (user-reported). The field of view matches the ortho
+    /// scale at the target plane (fov = 2·atan(scale/1500)), so the
+    /// mid-lane size is unchanged while the far right end shrinks
+    /// into the distance and the near left end grows past the camera.
+    /// `orthographicScale` still tracks the taller `--angle` window
+    /// for the 1:1 math above; `viewHeight` grows the frame upward so
+    /// the drift fits (docs/adr/scene.md).
     private func addCamera(to scene: SCNScene, frame: NSRect,
                            azimuth: Double) {
         let camera = SCNCamera()
-        camera.usesOrthographicProjection = true
-        camera.orthographicScale = Double(frame.height / 2)
-        camera.zNear = -5000
-        camera.zFar = 5000
+        let ortho = azimuth == 0
+        camera.usesOrthographicProjection = ortho
+        if ortho {
+            camera.orthographicScale = Double(frame.height / 2)
+            camera.zNear = -5000
+            camera.zFar = 5000
+        } else {
+            camera.fieldOfView = 2 * atan2(
+                Double(frame.height / 2), 1500) * 180 / .pi
+            camera.zNear = 1
+            camera.zFar = 10000
+        }
         let node = SCNNode()
         node.name = "camera"
         node.camera = camera

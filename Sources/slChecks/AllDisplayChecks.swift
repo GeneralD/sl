@@ -56,6 +56,33 @@ public let allDisplayChecks: [Check] = [
             laneHeight: 600, stripWidth: 2000, viewAngle: 45,
             screenHeight: 800), 800)
     },
+    Check("when the run screens are requested it returns at least one display") {
+        try expect(!OverlayGeometry.runScreens(all: false).isEmpty)
+        try expect(!OverlayGeometry.runScreens(all: true).isEmpty)
+    },
+    Check("when the lane is built over a live screen it sits at that screen's bottom edge") {
+        guard let screen = OverlayGeometry.frontmostScreen() else {
+            try expect(false, "no screen attached")
+            return
+        }
+        let want = NSRect(x: screen.frame.minX, y: screen.frame.minY,
+                          width: screen.frame.width, height: 180)
+        try expectEqual(OverlayGeometry.lane(on: [screen], height: 180), want)
+        try expectEqual(OverlayGeometry.bottomStrip(on: screen, height: 180), want)
+    },
+    Check("when dock zones are computed over live screens they match the pure core") {
+        guard let screen = OverlayGeometry.frontmostScreen() else {
+            try expect(false, "no screen attached")
+            return
+        }
+        let lane = NSRect(x: screen.frame.minX, y: screen.frame.minY,
+                          width: screen.frame.width, height: 180)
+        let live = OverlayGeometry.dockZones(on: [screen], lane: lane)
+        let pure = OverlayGeometry.dockZones(
+            screenFrames: [screen.frame],
+            visibleFrames: [screen.visibleFrame], lane: lane)
+        try expectEqual(live.count, pure.count)
+    },
     Check("when mapping a global rect onto a screen it subtracts the screen origin") {
         let local = OverlayGeometry.localRect(
             NSRect(x: 1784, y: 8, width: 220, height: 90),

@@ -83,7 +83,7 @@ man sl
 | `--all` | Traverse every connected display. |
 | `--model <file>` | Load a `.usdz`, `.scn` or `.dae` locomotive instead of the bundled `loco.usdz`. `-<n>`/`--cars` then couples the bundled tender and coach cars behind it. |
 | `--scale <f>` | Train size multiplier — the default already fills a large share of the screen height. |
-| `--angle <deg>` | Camera azimuth for the 3/4 view — default 25 swings toward the loco's front so it runs diagonally; `0` keeps the flat side-on lane. |
+| `--angle <deg>` | Camera azimuth for the 3/4 view — default 25 swings toward the loco's front and switches to perspective, so the consist approaches out of the distance and grows as it nears; `0` keeps the flat side-on ortho lane. |
 | `--freeze <sec>` | Render one frozen frame and hold — the lane `scripts/shot` uses. |
 | `--stealth` | Stay invisible: hidden from screenshots and screen recording. |
 
