@@ -95,27 +95,28 @@ private func smokeEmitter(scale s: CGFloat) -> SCNNode {
 /// Light-gray puffs that rise, drift backwards (+x, opposite the
 /// -x run direction) and fade out — world-space (`isLocal = false`)
 /// so they linger where emitted instead of riding the loco.
-/// The billow: big soft puffs on a slow buoyant rise with a wide
-/// spread — "ぼわっ" reads as a rolling cloud, not a thin jet.
+/// The billow: a puff must read AT the stack, then loosen into the
+/// cloud — born visible and quick, not a slow ramp (user-reported
+/// lag: puffs only appeared once the chimney had moved on).
 private func chimneySmoke(scale s: CGFloat) -> SCNParticleSystem {
     let smoke = SCNParticleSystem()
-    smoke.birthRate = 18
+    smoke.birthRate = 30
     // birthRate counts particles per emissionDuration, and `loops`
-    // (default on) re-fires every second — a continuous ~18 puffs/s.
+    // (default on) re-fires every second — a continuous ~30 puffs/s.
     smoke.emissionDuration = 1
     smoke.warmupDuration = 1.4    // puffs already aloft in frame one
     smoke.particleLifeSpan = 3.6
     smoke.particleLifeSpanVariation = 0.9
-    smoke.particleVelocity = 15
-    smoke.particleVelocityVariation = 7
-    smoke.emittingDirection = SCNVector3(0.3, 1, 0)
-    smoke.spreadingAngle = 42
+    smoke.particleVelocity = 22
+    smoke.particleVelocityVariation = 8
+    smoke.emittingDirection = SCNVector3(0.2, 1, 0)
+    smoke.spreadingAngle = 30
     smoke.dampingFactor = 0.35
     // Buoyancy: the column keeps climbing as it disperses.
-    smoke.acceleration = SCNVector3(0, 4, 0)
+    smoke.acceleration = SCNVector3(0, 5, 0)
     smoke.particleColor = NSColor(calibratedWhite: 0.72, alpha: 1)
     smoke.particleColorVariation = SCNVector4(0.06, 0.06, 0.06, 0.15)
-    smoke.particleSize = 12 * s
+    smoke.particleSize = 14 * s
     smoke.particleSizeVariation = 4 * s
     smoke.particleImage = smokePuff()
     smoke.blendMode = .alpha
@@ -130,22 +131,29 @@ private func chimneySmoke(scale s: CGFloat) -> SCNParticleSystem {
     return smoke
 }
 
-/// Fade in, hold, fade out over each puff's life. Peak opacity stays
-/// well under 1 so the lane underneath never gets opaqued.
+/// Quick fade-in, hold, fade out over each puff's life — keyTimes are
+/// explicit: even spacing would keep a puff translucent for the first
+/// ~1.2s of its 3.6s life (the reported "smoke appears late"). Near-
+/// peak by 8% of life so the plume starts AT the stack. Peak opacity
+/// stays well under 1 so the lane underneath never gets opaqued.
 private func fadeController() -> SCNParticlePropertyController {
     let animation = CAKeyframeAnimation()
-    animation.values = [0.0, 0.55, 0.5, 0.0]
+    animation.values = [0.0, 0.55, 0.62, 0.5, 0.0]
+    animation.keyTimes = [0.0, 0.08, 0.25, 0.7, 1.0]
     return SCNParticlePropertyController(animation: animation)
 }
 
-/// Puffs billow as they rise. The size controller's animation values
-/// multiply `particleSize` (verified against `SCNRenderer` output), so
-/// these are growth factors, not point sizes.
+/// Puffs billow as they rise — born already readable (factor 1.0 of a
+/// 14pt sprite, not a 6pt speck), a fast early bloom, then the slow
+/// drift-apart. The size controller's animation values multiply
+/// `particleSize` (verified against `SCNRenderer` output), so these
+/// are growth factors, not point sizes.
 private func growController() -> SCNParticlePropertyController {
     let animation = CAKeyframeAnimation()
-    animation.values = [0.5, 1.0, 2.1, 3.4].map {
+    animation.values = [1.0, 1.5, 2.5, 3.4].map {
         NSNumber(value: Double($0))
     }
+    animation.keyTimes = [0.0, 0.15, 0.6, 1.0]
     return SCNParticlePropertyController(animation: animation)
 }
 
