@@ -207,7 +207,7 @@ public final class SceneKitRenderer: Renderer {
         self.train = train
         baseScale = train.scale
         locoMaterials = Self.materials(of: train)
-        if let livery = spec.livery { applyLivery(livery) }
+        if let livery = spec.livery { applyLivery(livery, to: scene) }
         // Wheelwork reads the wrapper's final scale, so it must init
         // after `locoScale` landed and the node sits in the scene.
         if let model, model.node === train {
@@ -281,7 +281,7 @@ public final class SceneKitRenderer: Renderer {
     /// while the paint moves. One-shot at scene build — `-d`'s
     /// per-frame strobe simply overrides the colors again while it
     /// runs.
-    private func applyLivery(_ livery: RunSpec.Livery) {
+    private func applyLivery(_ livery: RunSpec.Livery, to scene: SCNScene) {
         var cache: [ObjectIdentifier: CGImage] = [:]
         for material in locoMaterials {
             guard let contents = material.diffuse.contents
@@ -302,6 +302,45 @@ public final class SceneKitRenderer: Renderer {
                     if livery.matte { mattify(material) }
                 }
             }
+        }
+        if livery.matte { stageMatteLighting(in: scene) }
+    }
+
+    /// Matte-black dimensionality: a near-black body loses its diffuse
+    /// shading, so the form must read through light, not paint. A rim
+    /// light behind and above the lane catches the boiler crown and
+    /// far-flank edges while the camera side stays dead — and a soft
+    /// studio-box environment lays a sky-to-ground sheen gradient
+    /// along the flanks (IBL, not a visible backdrop).
+    private func stageMatteLighting(in scene: SCNScene) {
+        let node = SCNNode()
+        node.name = "rim-light"
+        node.light = SCNLight()
+        node.light?.type = .directional
+        node.light?.intensity = 750
+        node.light?.color = NSColor(
+            calibratedRed: 0.95, green: 0.97, blue: 1, alpha: 1)
+        // Behind (-z) and high: directional light rakes the crown and
+        // the edges facing away from the trackside camera.
+        node.position = SCNVector3(500, 420, -420)
+        node.look(at: SCNVector3(500, 90, 0))
+        scene.rootNode.addChildNode(node)
+        scene.lightingEnvironment.contents = studioEnvironment()
+        scene.lightingEnvironment.intensity = 0.65
+    }
+
+    /// A 3-stop vertical gradient standing in for a softbox: bright
+    /// sky band over a dark ground, reflected faintly in the mattified
+    /// paint so the boiler's curvature reads as a sheen sweep.
+    private func studioEnvironment() -> NSImage {
+        NSImage(size: NSSize(width: 64, height: 64), flipped: false) {
+            rect in
+            NSGradient(colors: [
+                NSColor(calibratedWhite: 0.9, alpha: 1),
+                NSColor(calibratedWhite: 0.35, alpha: 1),
+                NSColor(calibratedWhite: 0.08, alpha: 1),
+            ])?.draw(in: rect, angle: -90)
+            return true
         }
     }
 
@@ -339,11 +378,15 @@ public final class SceneKitRenderer: Renderer {
         return .body
     }
 
-    /// Stove-black finish: kill the specular response so the repaint
-    /// reads as dead paint, not satin vinyl.
+    /// Stove-black finish: specular drops to a broad whisper — dead
+    /// paint, not vinyl, but enough left for the rim light and the
+    /// environment sheen to trace the boiler's curvature. A touch of
+    /// metalness lets the studio environment read on the flanks —
+    /// matte paint still reflects the sky, just spread wide.
     private func mattify(_ material: SCNMaterial) {
-        material.specular.contents = NSColor(white: 0.04, alpha: 1)
+        material.specular.contents = NSColor(white: 0.10, alpha: 1)
         material.shininess = 0.1
+        material.metalness.contents = 0.35
     }
 
     /// Diffuse contents → CIImage. USDZ keeps its texture atlas inside

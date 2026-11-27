@@ -472,6 +472,16 @@ public let sceneKitChecks: [Check] = [
             try expect(mattedGold == 0,
                        "accent fittings got mattified: \(mattedGold)")
             try expect(mattified > 0, "no body paint went matte")
+            // Matte liveries stage their own lighting: a rim light
+            // behind the lane plus a studio environment for IBL.
+            let rim = scene.rootNode.childNode(
+                withName: "rim-light", recursively: false)
+            try expect(rim?.light?.type == .directional,
+                       "no rim light for the matte finish")
+            try expect(rim?.position.z ?? 0 < 0,
+                       "rim light not behind the lane: \(String(describing: rim?.position))")
+            try expect(scene.lightingEnvironment.contents != nil,
+                       "no studio environment for IBL sheen")
         }
     },
     Check("when --color is absent the consist keeps its factory finish") {
