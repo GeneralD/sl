@@ -60,6 +60,97 @@ public let allDisplayChecks: [Check] = [
         try expect(!OverlayGeometry.runScreens(all: false).isEmpty)
         try expect(!OverlayGeometry.runScreens(all: true).isEmpty)
     },
+    Check("when the launch screen is resolved it is one of the attached screens") {
+        guard let screen = OverlayGeometry.launchScreen() else {
+            try expect(false, "no launch screen")
+            return
+        }
+        try expect(NSScreen.screens.contains(screen))
+    },
+    Check("when a quartz frame sits inside a screen the mapping returns that screen") {
+        guard let primary = NSScreen.screens
+            .first(where: { $0.frame.origin == .zero }),
+              let target = NSScreen.screens.last
+        else {
+            try expect(false, "no screens attached")
+            return
+        }
+        let inner = target.frame.insetBy(dx: 10, dy: 10)
+        let quartz = CGRect(
+            x: inner.minX,
+            y: primary.frame.height - inner.maxY,
+            width: inner.width, height: inner.height)
+        try expectEqual(
+            OverlayGeometry.screen(holdingQuartzFrame: quartz), target)
+    },
+    Check("when a quartz frame misses every screen the mapping returns nil") {
+        let nowhere = CGRect(x: -999_999, y: -999_999, width: 10, height: 10)
+        try expectEqual(
+            OverlayGeometry.screen(holdingQuartzFrame: nowhere), nil)
+        try expectEqual(
+            OverlayGeometry.screen(holdingQuartzFrame: .zero), nil)
+    },
+    Check("when a quartz frame straddles two screens the bigger share wins") {
+        guard NSScreen.screens.count > 1,
+              let primary = NSScreen.screens
+                  .first(where: { $0.frame.origin == .zero })
+        else { return }
+        let screens = NSScreen.screens
+        let lower = screens.min(by: { $0.frame.minY < $1.frame.minY })!
+        let upper = screens.max(by: { $0.frame.maxY < $1.frame.maxY })!
+        guard lower.frame.maxY <= upper.frame.minY else { return }
+        let seamY = max(lower.frame.maxY, upper.frame.minY)
+        // AppKit rect [seamY-60, seamY+40]: 60% in `lower`, 40% in
+        // `upper` — the Quartz frame is top-left-origin.
+        let spanH: CGFloat = 100
+        let quartzY = primary.frame.height - seamY - spanH * 0.4
+        let quartz = CGRect(
+            x: lower.frame.minX + 100, y: quartzY,
+            width: 200, height: spanH)
+        try expectEqual(
+            OverlayGeometry.screen(holdingQuartzFrame: quartz), lower)
+    },
+    Check("when a pid owns no windows its frontmost frame is nil") {
+        try expectEqual(
+            OverlayGeometry.frontmostWindowFrame(ofAppPid: getpid()),
+            nil)
+    },
+    Check("when a parent pid is asked of self it reports getppid") {
+        try expectEqual(
+            OverlayGeometry.parentPid(of: getpid()), getppid())
+        try expectEqual(OverlayGeometry.parentPid(of: -1), nil)
+    },
+    Check("when a gui ancestor is found it is a non-prohibited app") {
+        guard let pid = OverlayGeometry.guiAncestor(of: getpid()) else {
+            return
+        }
+        let app = NSRunningApplication(processIdentifier: pid)
+        try expect(app != nil)
+        try expect(app?.activationPolicy != .prohibited)
+    },
+    Check("when a bundle id has no running app its pid is nil") {
+        try expectEqual(OverlayGeometry.runningPid(
+            ofBundleId: "invalid.sl.nonexistent-bundle"), nil)
+    },
+    Check("when launch pids resolve under any env they stay unique and valid") {
+        for env: [String: String] in [
+            [:],
+            ["__CFBundleIdentifier": "invalid.sl.nobundle"],
+            ["TERM_PROGRAM": "tmux"],
+            ["TERM_PROGRAM": "vscode", "TMUX": "1"],
+        ] {
+            let pids = OverlayGeometry.launchPids(environment: env)
+            try expect(Set(pids).count == pids.count, "dupe pids")
+            try expect(pids.allSatisfy { $0 > 1 }, "bad pid")
+        }
+    },
+    Check("when a launch env names a live bundle its pid is a candidate") {
+        guard let finder = OverlayGeometry.runningPid(
+            ofBundleId: "com.apple.finder") else { return }
+        try expect(OverlayGeometry.launchPids(environment: [
+            "__CFBundleIdentifier": "com.apple.finder",
+        ]).contains(finder))
+    },
     Check("when the lane is built over a live screen it sits at that screen's bottom edge") {
         guard let screen = OverlayGeometry.frontmostScreen() else {
             try expect(false, "no screen attached")
