@@ -167,7 +167,7 @@ public final class SceneKitRenderer: Renderer {
 
         addAmbientLight(to: scene)
         addKeyLight(to: scene)
-        addCamera(to: scene, frame: frame)
+        addCamera(to: scene, frame: frame, azimuth: spec.viewAngle)
 
         let train: SCNNode
         if let model {
@@ -377,27 +377,36 @@ public final class SceneKitRenderer: Renderer {
 
     /// 3/4 overhead ortho camera: elevated ~37° toward the viewer
     /// (+z, out of the lane plane) so boiler crowns, domes, the cab
-    /// roof and the wheel/rod depth read on screen. The offset stays
-    /// in the y-z plane — any x yaw would rotate the consist off the
-    /// lane's horizontal and break the right-to-left read. `look(at:)`
-    /// keeps the horizon level. `orthographicScale` stays height/2:
-    /// ortho scale is isotropic, so zooming to compensate the ~0.8
-    /// vertical foreshortening would crop the consist's width instead —
-    /// the train lands a touch smaller than the old side-on framing.
-    /// One world unit is no longer one screen point (docs/adr/scene.md).
-    private func addCamera(to scene: SCNScene, frame: NSRect) {
+    /// roof and the wheel/rod depth read on screen. `azimuth` rotates
+    /// the horizontal reach toward the loco's front (-x): the consist
+    /// then runs diagonally on screen and the smokebox face shows —
+    /// the sketch-requested 3/4 look. 0 keeps the classic flat
+    /// side-on lane (the original task-71 framing). `look(at:)` keeps
+    /// the horizon level. `orthographicScale` stays height/2: ortho
+    /// scale is isotropic, so zooming to compensate the ~0.8
+    /// vertical foreshortening would crop the consist's width
+    /// instead — the train lands a touch smaller than the old
+    /// side-on framing. One world unit is no longer one screen point
+    /// (docs/adr/scene.md).
+    private func addCamera(to scene: SCNScene, frame: NSRect,
+                           azimuth: Double) {
         let camera = SCNCamera()
         camera.usesOrthographicProjection = true
         camera.orthographicScale = Double(frame.height / 2)
         camera.zNear = -5000
         camera.zFar = 5000
         let node = SCNNode()
+        node.name = "camera"
         node.camera = camera
         let target = SCNVector3(
             Float(frame.width / 2), Float(frame.height / 2), 0)
-        // Offset = (0, 0.6, 0.8) × 1500 pt: straight up-and-toward.
-        node.position = SCNVector3(
-            target.x, target.y + 900, 1200)
+        // Offset: elevation ~(0.6, 0.8) × 1500 pt; azimuth swings the
+        // horizontal reach toward -x (front) so the diagonal reads.
+        let az = azimuth * .pi / 180
+        let reach: CGFloat = 1200
+        let dx = reach * sin(az)
+        let dz = reach * cos(az)
+        node.position = SCNVector3(target.x - dx, target.y + 900, dz)
         node.look(at: target)
         scene.rootNode.addChildNode(node)
     }

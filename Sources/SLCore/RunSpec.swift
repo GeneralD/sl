@@ -39,6 +39,11 @@ public struct RunSpec: Sendable {
     /// train size. 1 is the tuned default; values must be positive.
     public var scale: Double = 1.0
 
+    /// `--angle <deg>`: camera azimuth for the 3/4 view — 0 is the
+    /// classic flat side-on lane; the default swings the camera
+    /// toward the loco's front so it runs diagonally on screen.
+    public var viewAngle: Double = 25
+
     public var stealth: Bool = false
 
     /// `-a` requests the accident: the visual panic (screamer sprites,
@@ -75,7 +80,7 @@ public extension RunSpec {
     /// Flag table matching `sl.1`; `-h` prints this.
     static func usage() -> String {
         """
-        usage: sl [-adeFhlsvw] [-<number-of-cars>] [--cars <n>] [--all] [--model <file>] [--freeze <seconds>] [--duration <seconds>] [--scale <factor>] [--stealth]
+        usage: sl [-adeFhlsvw] [-<number-of-cars>] [--cars <n>] [--all] [--model <file>] [--freeze <seconds>] [--duration <seconds>] [--scale <factor>] [--angle <deg>] [--stealth]
                sl --help | --version
 
         flags:
@@ -95,6 +100,7 @@ public extension RunSpec {
           --freeze SEC  render one frozen frame and hold
           --duration SEC  cap the run at SEC seconds
           --scale F     train size multiplier (default 1)
+          --angle DEG   camera azimuth: 0 = flat side view (default 25)
           --stealth     hide from screen sharing
           --version     print version
         """
@@ -139,7 +145,8 @@ public extension RunSpec {
                 case "version": spec.versionRequested = true
                 case "all": spec.allDisplays = true
                 case "stealth": spec.stealth = true
-                case "model", "freeze", "duration", "scale", "cars":
+                case "model", "freeze", "duration", "scale", "cars",
+                     "angle":
                     let value: String
                     if let inline {
                         guard !inline.isEmpty else { return .failure(.missingValue("--\(name)")) }
@@ -173,6 +180,13 @@ public extension RunSpec {
                                                            expected: "0-50"))
                         }
                         spec.cars = n
+                    } else if name == "angle" {
+                        guard let degrees = Double(value),
+                              degrees.isFinite,
+                              (0...75).contains(degrees) else {
+                            return .failure(.invalidValue("--angle", value))
+                        }
+                        spec.viewAngle = degrees
                     } else {
                         guard let seconds = Double(value) else {
                             return .failure(.invalidValue("--freeze", value))

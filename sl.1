@@ -23,6 +23,7 @@
 .Fl -freeze Ar seconds |
 .Fl -duration Ar seconds |
 .Fl -scale Ar factor |
+.Fl -angle Ar degrees |
 .Fl -stealth
 .Sh DESCRIPTION
 .Nm
@@ -94,6 +95,12 @@ The default is 10 seconds, never past the train's own crossing time.
 Scale the train. The default is already near screen-filling;
 .Ar factor
 multiplies it (must be positive). Smoke, cars and effects follow.
+.It Fl -angle Ar degrees
+Camera azimuth for the 3/4 view. The default 25 swings the camera
+toward the locomotive's front so the consist runs diagonally and the
+smokebox face reads on screen;
+.Ar 0
+keeps the classic flat side-on lane. Valid range is 0-75.
 .It Fl -stealth
 Stay invisible: the train is hidden from screenshots and screen
 recording.

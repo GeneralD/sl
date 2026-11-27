@@ -158,9 +158,18 @@ public let runSpecChecks: [Check] = [
         let text = RunSpec.usage()
         for flag in ["-a", "-d", "-e", "-F", "-l", "-s", "-v", "-w",
                      "-<n>", "--cars", "--all", "--model", "--freeze",
-                     "--stealth"] {
+                     "--angle", "--stealth"] {
             try expect(text.contains(flag), "usage() lacks \(flag)")
         }
+    },
+    Check("when invoked with --angle it records the camera azimuth within bounds") {
+        try expectEqual(try spec(["sl"]).viewAngle, 25)
+        try expectEqual(try spec(["sl", "--angle", "40"]).viewAngle, 40)
+        try expectEqual(try spec(["sl", "--angle=0"]).viewAngle, 0)
+        try parseFails(["sl", "--angle", "-5"])
+        try parseFails(["sl", "--angle", "90"])
+        try parseFails(["sl", "--angle", "flat"])
+        try parseFails(["sl", "--angle"])
     },
     Check("when a parse fails the error describes the cause") {
         let cases: [(args: [String], needle: String)] = [

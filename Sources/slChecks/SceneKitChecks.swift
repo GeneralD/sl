@@ -93,15 +93,19 @@ public let sceneKitChecks: [Check] = [
             }
             try expect(camera.usesOrthographicProjection)
             try expect(camera.orthographicScale == 90)
-            // Elevated straight toward the viewer (+y, +z), no yaw —
-            // pitched down, level horizon.
-            try expect(camNode.position.x == 500)
+            // Elevated toward the viewer (+y, +z) with the default
+            // 25° azimuth swinging toward the loco's front (-x):
+            // x = 500 - 1200·sin(25°), z = 1200·cos(25°); pitched down,
+            // yawed, level horizon (no roll).
+            try expect(camNode.position.x < 500,
+                       "camera did not swing toward -x: \(camNode.position)")
             try expect(camNode.position.y == 990)
-            try expect(camNode.position.z == 1200)
+            try expect(abs(camNode.position.z - 1200 * cos(25 * .pi / 180)) < 1,
+                       "unexpected z reach: \(camNode.position.z)")
             try expect(camNode.eulerAngles.x < -0.3,
                        "camera not pitched down: \(camNode.eulerAngles)")
-            try expect(abs(camNode.eulerAngles.y) < 0.001,
-                       "camera yawed off the lane: \(camNode.eulerAngles)")
+            try expect(abs(abs(camNode.eulerAngles.y) - 25 * .pi / 180) < 0.05,
+                       "camera yaw off the azimuth: \(camNode.eulerAngles)")
             try expect(abs(camNode.eulerAngles.z) < 0.001,
                        "camera rolled: \(camNode.eulerAngles)")
         }
@@ -236,6 +240,33 @@ public let sceneKitChecks: [Check] = [
                 try expect(cross.worldPosition.x < axle.worldPosition.x,
                            "loco faces +x — cylinders trail the drivers")
             }
+        }
+    },
+    Check("when the scene camera is angled it swings toward the loco's front") {
+        try MainActor.assumeIsolated {
+            @MainActor func cameraX(_ args: [String]) throws -> CGFloat {
+                let spec: RunSpec
+                switch RunSpec.parse(args) {
+                case .success(let s): spec = s
+                case .failure(let e):
+                    throw CheckFailure(message: "spec failed: \(e)")
+                }
+                let renderer = SceneKitRenderer(spec: spec, stripWidth: 1000)
+                guard let scene = (renderer.makeView(
+                    in: NSRect(x: 0, y: 0, width: 1000, height: 180),
+                    spec: spec) as? SCNView)?.scene,
+                      let cam = scene.rootNode.childNode(
+                          withName: "camera", recursively: false)
+                else {
+                    throw CheckFailure(message: "no camera node in scene")
+                }
+                return cam.position.x
+            }
+            // Center is x=500; a positive azimuth swings toward -x.
+            let angled = try cameraX(["sl"])
+            try expect(angled < 500,
+                       "default angle did not swing toward the front")
+            try expectEqual(try cameraX(["sl", "--angle", "0"]), 500)
         }
     },
     Check("when stepped the SceneKit renderer moves the train right-to-left and reports finished") {
