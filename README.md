@@ -2,7 +2,7 @@
 
 ![license](https://img.shields.io/badge/license-MIT-blue) ![platform](https://img.shields.io/badge/platform-macOS%2013+-black) ![swift](https://img.shields.io/badge/swift-6.3-orange) ![release](https://img.shields.io/github/v/release/GeneralD/sl) ![checks](https://img.shields.io/github/actions/workflow/status/GeneralD/sl/ci.yml?label=checks)
 
-![sl — a steam locomotive crossing a macOS desktop](assets/hero.png)
+![sl — a matte-black steam locomotive charging out of the dark, headlight blazing](assets/hero.png)
 
 A `3D` steam locomotive that runs across your **actual desktop** — over
 every open window, on every Space — when you typo `ls` into `sl`.
